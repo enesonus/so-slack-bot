@@ -3,7 +3,9 @@ module github.com/enesonus/go-slack-bot
 go 1.20
 
 require (
+	github.com/google/uuid v1.3.1
 	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.10.9
 	github.com/shomali11/slacker v1.4.1
 	github.com/slack-go/slack v0.12.1
 )

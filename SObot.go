@@ -16,14 +16,6 @@ import (
 	"github.com/slack-go/slack"
 )
 
-func botInit() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatalf("Some error occured. Err: %s", err)
-	}
-
-}
-
 func botStackOverflow(botCtx slacker.BotContext, channelID string, tag string) {
 	lastQuestionDate := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 	checkInterval, err := strconv.Atoi(os.Getenv("NEW_QUESTION_CHECK_INTERVAL_SECONDS"))
@@ -126,34 +118,4 @@ func getSOQuestionsAfterTime(tag string, fromDate time.Time) []StackOverflowQues
 	todaysQuestions = append(todaysQuestions, apiResponse.Items...)
 
 	return todaysQuestions
-}
-
-type StackOverflowQuestion struct {
-	Tags  []string
-	Owner struct {
-		Account_id    int    `json:"account_id"`
-		Reputation    int    `json:"reputation"`
-		User_id       int    `json:"user_id"`
-		User_type     string `json:"user_type"`
-		Profile_image string `json:"profile_image"`
-		Display_name  string `json:"display_name"`
-		Link          string `json:"link"`
-	}
-	Is_answered        bool   `json:"is_answered"`
-	View_count         int    `json:"view_count"`
-	Answer_count       int    `json:"answer_count"`
-	Score              int    `json:"score"`
-	Last_activity_date int64  `json:"last_activity_date"`
-	Creation_date      int64  `json:"creation_date"`
-	Question_id        int    `json:"question_id"`
-	Content_license    string `json:"content_license"`
-	Link               string `json:"link"`
-	Title              string `json:"title"`
-}
-
-type StackExchangeAPIResponse struct {
-	Items           []StackOverflowQuestion `json:"items"`
-	Has_more        bool                    `json:"has_more"`
-	Quota_max       int                     `json:"quota_max"`
-	Quota_remaining int                     `json:"quota_remaining"`
 }
