@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/shomali11/slacker"
 	"github.com/slack-go/slack"
 )

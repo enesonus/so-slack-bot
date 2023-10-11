@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/shomali11/slacker"
 	"github.com/slack-go/slack"
@@ -112,7 +111,6 @@ var setSOChannelDef = &slacker.CommandDefinition{
 		if event.ChannelID != "" {
 			StackOverflowChannelName = event.Channel.Name
 			fmt.Printf("Stack Overflow channel is set to %s\n", StackOverflowChannelName)
-			log.Fatalf("data %v", event.Data)
 			apiClient.PostMessage(event.ChannelID, slack.MsgOptionText(
 				"SO question notification channel is set to: "+StackOverflowChannelName+" searching for tag: "+tag, false))
 
