@@ -1,5 +1,6 @@
 -- +goose Up
 CREATE TABLE tags (
+    id TEXT UNIQUE PRIMARY KEY,
     tag_name TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     channel_id TEXT NOT NULL,
