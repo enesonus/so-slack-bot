@@ -39,3 +39,51 @@ func (q *Queries) CreateBot(ctx context.Context, arg CreateBotParams) (Bot, erro
 	)
 	return i, err
 }
+
+const getBotByID = `-- name: GetBotByID :one
+SELECT id, created_at, last_activity_at, bot_token FROM bots WHERE id = $1
+`
+
+func (q *Queries) GetBotByID(ctx context.Context, id string) (Bot, error) {
+	row := q.db.QueryRowContext(ctx, getBotByID, id)
+	var i Bot
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.LastActivityAt,
+		&i.BotToken,
+	)
+	return i, err
+}
+
+const getBots = `-- name: GetBots :many
+SELECT id, created_at, last_activity_at, bot_token FROM bots
+`
+
+func (q *Queries) GetBots(ctx context.Context) ([]Bot, error) {
+	rows, err := q.db.QueryContext(ctx, getBots)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Bot
+	for rows.Next() {
+		var i Bot
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.LastActivityAt,
+			&i.BotToken,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
