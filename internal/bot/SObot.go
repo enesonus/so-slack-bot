@@ -17,7 +17,7 @@ import (
 
 func BotStackOverflow(botCtx slacker.BotContext, channelID string, tag string) {
 	lastQuestionDate := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
-	checkInterval, err := strconv.Atoi(os.Getenv("NEW_QUESTION_CHECK_INTERVAL_SECONDS"))
+	checkInterval, err := strconv.Atoi(os.Getenv("NEW_QUESTION_CHECK_PERIOD_SECONDS"))
 
 	if err != nil {
 		log.Fatal("Couldn't get checkInterval from .env: " + err.Error())
@@ -29,7 +29,7 @@ func BotStackOverflow(botCtx slacker.BotContext, channelID string, tag string) {
 		var questionsToPost []StackOverflowQuestion
 
 		if channelID != "" {
-			timePeriod, err := strconv.Atoi(os.Getenv("QUESTION_QUERY_TIME_PERIOD_MINUTES"))
+			timePeriod, err := strconv.Atoi(os.Getenv("QUESTION_QUERY_TIME_RANGE_MINUTES"))
 			if err != nil {
 				log.Println("Couldn't get timePeriod from .env: " + err.Error())
 				timePeriod = 60

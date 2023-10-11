@@ -41,13 +41,9 @@ func setDatabase() *db.Queries {
 	}
 	fmt.Printf("apiCfg: %v\n", apiCfg)
 
-	return database
-}
-
-func testDatabase(database *db.Queries, count int) {
-
+	botCount := 3
 	start := time.Now()
-	for i := 0; i < count; i++ {
+	for i := 0; i < botCount; i++ {
 
 		params := db.CreateBotParams{
 			CreatedAt:      time.Now(),
@@ -60,7 +56,7 @@ func testDatabase(database *db.Queries, count int) {
 			log.Fatal("Couldn't create bot: ", err)
 		}
 	}
-	fmt.Printf("Time to create %v bots: %v\n", count, time.Since(start))
+	fmt.Printf("Time to create %v bots: %v\n", botCount, time.Since(start))
 
 	start = time.Now()
 	bots, err := database.GetBots(context.Background())

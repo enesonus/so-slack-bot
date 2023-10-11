@@ -11,9 +11,9 @@ primary_region = "ams"
   buildpacks = ["gcr.io/paketo-buildpacks/go"]
 
 [env]
-  NEW_QUESTION_CHECK_INTERVAL_SECONDS = "5"
+  NEW_QUESTION_CHECK_PERIOD_SECONDS = "5"
   PORT = "8080"
-  QUESTION_QUERY_TIME_PERIOD_MINUTES = "60"
+  QUESTION_QUERY_TIME_RANGE_MINUTES = "60"
 
 
 [http_service]
