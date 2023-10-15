@@ -1,10 +1,9 @@
 -- +goose Up
 CREATE TABLE workspaces (
     id TEXT UNIQUE PRIMARY KEY,
-    workspace_name TEXT,
-    workspace_domain TEXT,
-    bot_id TEXT NOT NULL REFERENCES bots(id) ON DELETE CASCADE,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    workspace_name VARCHAR(255) NOT NULL,
+    workspace_domain VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- +goose Down
