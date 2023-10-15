@@ -9,8 +9,6 @@ import (
 	"context"
 	"database/sql"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 const createWorkspace = `-- name: CreateWorkspace :one
@@ -23,7 +21,7 @@ type CreateWorkspaceParams struct {
 	ID              string
 	WorkspaceName   sql.NullString
 	WorkspaceDomain sql.NullString
-	BotID           uuid.UUID
+	BotID           int32
 	CreatedAt       time.Time
 }
 

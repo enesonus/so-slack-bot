@@ -8,8 +8,6 @@ package db
 import (
 	"context"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 const createChannel = `-- name: CreateChannel :one
@@ -21,7 +19,7 @@ RETURNING id, channel_name, bot_id, workspace_id, created_at
 type CreateChannelParams struct {
 	ID          string
 	ChannelName string
-	BotID       uuid.UUID
+	BotID       int32
 	WorkspaceID string
 	CreatedAt   time.Time
 }

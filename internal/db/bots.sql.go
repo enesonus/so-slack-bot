@@ -11,25 +11,19 @@ import (
 )
 
 const createBot = `-- name: CreateBot :one
-INSERT INTO bots (id, created_at, last_activity_at, bot_token)
-VALUES ($1, $2, $3, $4)
+INSERT INTO bots (bot_token, created_at, last_activity_at)
+VALUES ($1, $2, $3)
 RETURNING id, created_at, last_activity_at, bot_token
 `
 
 type CreateBotParams struct {
-	ID             string
+	BotToken       string
 	CreatedAt      time.Time
 	LastActivityAt time.Time
-	BotToken       string
 }
 
 func (q *Queries) CreateBot(ctx context.Context, arg CreateBotParams) (Bot, error) {
-	row := q.db.QueryRowContext(ctx, createBot,
-		arg.ID,
-		arg.CreatedAt,
-		arg.LastActivityAt,
-		arg.BotToken,
-	)
+	row := q.db.QueryRowContext(ctx, createBot, arg.BotToken, arg.CreatedAt, arg.LastActivityAt)
 	var i Bot
 	err := row.Scan(
 		&i.ID,
@@ -44,8 +38,24 @@ const getBotByID = `-- name: GetBotByID :one
 SELECT id, created_at, last_activity_at, bot_token FROM bots WHERE id = $1
 `
 
-func (q *Queries) GetBotByID(ctx context.Context, id string) (Bot, error) {
+func (q *Queries) GetBotByID(ctx context.Context, id int32) (Bot, error) {
 	row := q.db.QueryRowContext(ctx, getBotByID, id)
+	var i Bot
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.LastActivityAt,
+		&i.BotToken,
+	)
+	return i, err
+}
+
+const getBotByToken = `-- name: GetBotByToken :one
+SELECT id, created_at, last_activity_at, bot_token FROM bots WHERE bot_token = $1
+`
+
+func (q *Queries) GetBotByToken(ctx context.Context, botToken string) (Bot, error) {
+	row := q.db.QueryRowContext(ctx, getBotByToken, botToken)
 	var i Bot
 	err := row.Scan(
 		&i.ID,

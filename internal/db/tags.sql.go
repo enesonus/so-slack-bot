@@ -7,24 +7,46 @@ package db
 
 import (
 	"context"
-	"time"
+
+	"github.com/lib/pq"
 )
 
 const createTag = `-- name: CreateTag :one
-INSERT INTO tags (tag_name, created_at, channel_id)
-VALUES ($1, $2, $3)
-RETURNING tag_name, created_at, channel_id
+INSERT INTO tags (name, has_synonyms, synonyms, is_moderator_only, is_required, count, status)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, has_synonyms, synonyms, is_moderator_only, is_required, count, name, status
 `
 
 type CreateTagParams struct {
-	TagName   string
-	CreatedAt time.Time
-	ChannelID string
+	Name            string
+	HasSynonyms     bool
+	Synonyms        []string
+	IsModeratorOnly bool
+	IsRequired      bool
+	Count           int32
+	Status          string
 }
 
 func (q *Queries) CreateTag(ctx context.Context, arg CreateTagParams) (Tag, error) {
-	row := q.db.QueryRowContext(ctx, createTag, arg.TagName, arg.CreatedAt, arg.ChannelID)
+	row := q.db.QueryRowContext(ctx, createTag,
+		arg.Name,
+		arg.HasSynonyms,
+		pq.Array(arg.Synonyms),
+		arg.IsModeratorOnly,
+		arg.IsRequired,
+		arg.Count,
+		arg.Status,
+	)
 	var i Tag
-	err := row.Scan(&i.TagName, &i.CreatedAt, &i.ChannelID)
+	err := row.Scan(
+		&i.ID,
+		&i.HasSynonyms,
+		pq.Array(&i.Synonyms),
+		&i.IsModeratorOnly,
+		&i.IsRequired,
+		&i.Count,
+		&i.Name,
+		&i.Status,
+	)
 	return i, err
 }
