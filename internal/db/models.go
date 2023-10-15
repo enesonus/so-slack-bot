@@ -7,12 +7,10 @@ package db
 import (
 	"database/sql"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type Bot struct {
-	ID             string
+	ID             int32
 	CreatedAt      time.Time
 	LastActivityAt time.Time
 	BotToken       string
@@ -21,21 +19,31 @@ type Bot struct {
 type Channel struct {
 	ID          string
 	ChannelName string
-	BotID       uuid.UUID
+	BotID       int32
 	WorkspaceID string
 	CreatedAt   time.Time
 }
 
 type Tag struct {
-	TagName   string
-	CreatedAt time.Time
-	ChannelID string
+	ID              int32
+	HasSynonyms     bool
+	Synonyms        []string
+	IsModeratorOnly bool
+	IsRequired      bool
+	Count           int32
+	Name            string
+	Status          string
+}
+
+type TagSubscription struct {
+	TagID int32
+	BotID int32
 }
 
 type Workspace struct {
 	ID              string
 	WorkspaceName   sql.NullString
 	WorkspaceDomain sql.NullString
-	BotID           uuid.UUID
+	BotID           int32
 	CreatedAt       time.Time
 }

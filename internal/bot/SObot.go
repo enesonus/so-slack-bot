@@ -1,4 +1,4 @@
-package main
+package bot
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ import (
 	"github.com/slack-go/slack"
 )
 
-func botStackOverflow(botCtx slacker.BotContext, channelID string, tag string) {
+func BotStackOverflow(botCtx slacker.BotContext, channelID string, tag string) {
 	lastQuestionDate := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 	checkInterval, err := strconv.Atoi(os.Getenv("NEW_QUESTION_CHECK_INTERVAL_SECONDS"))
 
@@ -65,7 +65,7 @@ func botStackOverflow(botCtx slacker.BotContext, channelID string, tag string) {
 
 }
 
-func printCommandEvents(slackChannel <-chan *slacker.CommandEvent) {
+func PrintCommandEvents(slackChannel <-chan *slacker.CommandEvent) {
 	for event := range slackChannel {
 		log.Printf("Command Event Received")
 		log.Printf("Command: %v", event.Command)

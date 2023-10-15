@@ -11,11 +11,10 @@ import (
 
 	"github.com/enesonus/so-slack-bot/internal/db"
 	"github.com/enesonus/so-slack-bot/internal/server"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/google/uuid"
 	"github.com/joho/godotenv"
-	"github.com/shomali11/slacker"
 
 	_ "github.com/lib/pq"
 )
@@ -24,14 +23,7 @@ type apiConfig struct {
 	DB *db.Queries
 }
 
-func main() {
-	godotenv.Load()
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		log.Fatal("PORT must be set")
-	}
-	fmt.Println("Port: ", port)
+func setDatabase() *db.Queries {
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
@@ -49,11 +41,15 @@ func main() {
 	}
 	fmt.Printf("apiCfg: %v\n", apiCfg)
 
+	return database
+}
+
+func testDatabase(database *db.Queries, count int) {
+
 	start := time.Now()
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < count; i++ {
 
 		params := db.CreateBotParams{
-			ID:             uuid.UUID.String(uuid.New()),
 			CreatedAt:      time.Now(),
 			LastActivityAt: time.Now(),
 			BotToken:       "firstBotToken",
@@ -64,7 +60,7 @@ func main() {
 			log.Fatal("Couldn't create bot: ", err)
 		}
 	}
-	fmt.Printf("Time to create 1 bots: %v\n", time.Since(start))
+	fmt.Printf("Time to create %v bots: %v\n", count, time.Since(start))
 
 	start = time.Now()
 	bots, err := database.GetBots(context.Background())
@@ -74,9 +70,30 @@ func main() {
 		log.Fatal("Couldn't get bots: ", err)
 	}
 	// fmt.Println("Bot just created: ", botFromDB)
-	fmt.Printf("Bot count: %v\n", len(bots))
+	fmt.Printf("Total Bot count: %v\n", len(bots))
+
+}
+
+func main() {
+	godotenv.Load()
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		log.Fatal("PORT must be set")
+	}
+	fmt.Println("Port: ", port)
+
+	databaseObject := setDatabase()
+	server.FetchTagsAndSaveToDB(databaseObject, 1, 654)
+
+	// testDatabase(databaseObject, 5)
 
 	router := chi.NewRouter()
+
+	router.Use(middleware.RequestID)
+	router.Use(middleware.RealIP)
+	router.Use(middleware.Logger)
+	router.Use(middleware.Recoverer)
 
 	router.Use(cors.Handler(
 		cors.Options{
@@ -92,25 +109,9 @@ func main() {
 	}
 
 	router.Get("/", server.CheckReadiness)
+	router.Get("/healthz", server.CheckReadiness)
+	router.Get("/access_token/", server.GetAccessToken)
 
-	go srv.ListenAndServe()
+	srv.ListenAndServe()
 
-	bot := slacker.NewClient(os.Getenv("SLACK_BOT_TOKEN"), os.Getenv("SLACK_APP_TOKEN"))
-
-	bot.Command("set_so_channel", setSOChannelDef)
-	bot.Command("remove_so_channel", removeSOChannelDef)
-	bot.Command("getinfo", getUserInfoDef)
-	bot.Command("add_tag {tag}", setSOChannelDef)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go printCommandEvents(bot.CommandEvents())
-
-	// go botStackOverflow(bot, "open-telemetry")
-
-	err = bot.Listen(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
 }
