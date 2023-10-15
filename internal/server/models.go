@@ -18,7 +18,7 @@ type AccessTokenAPIResponse struct {
 	AccessToken         string     `json:"access_token"`
 	BotUserID           string     `json:"bot_user_id"`
 	Team                Team       `json:"team"`
-	Enterprise          *string    `json:"enterprise"` // Pointer to string since it can be null
+	Enterprise          *string    `json:"enterprise"`
 	IsEnterpriseInstall bool       `json:"is_enterprise_install"`
 }
 

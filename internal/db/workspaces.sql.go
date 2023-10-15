@@ -7,21 +7,19 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"time"
 )
 
 const createWorkspace = `-- name: CreateWorkspace :one
-INSERT INTO workspaces (id, workspace_name, workspace_domain, bot_id, created_at)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, workspace_name, workspace_domain, bot_id, created_at
+INSERT INTO workspaces (id, workspace_name, workspace_domain, created_at)
+VALUES ($1, $2, $3, $4)
+RETURNING id, workspace_name, workspace_domain, created_at
 `
 
 type CreateWorkspaceParams struct {
 	ID              string
-	WorkspaceName   sql.NullString
-	WorkspaceDomain sql.NullString
-	BotID           int32
+	WorkspaceName   string
+	WorkspaceDomain string
 	CreatedAt       time.Time
 }
 
@@ -30,7 +28,6 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 		arg.ID,
 		arg.WorkspaceName,
 		arg.WorkspaceDomain,
-		arg.BotID,
 		arg.CreatedAt,
 	)
 	var i Workspace
@@ -38,7 +35,6 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 		&i.ID,
 		&i.WorkspaceName,
 		&i.WorkspaceDomain,
-		&i.BotID,
 		&i.CreatedAt,
 	)
 	return i, err

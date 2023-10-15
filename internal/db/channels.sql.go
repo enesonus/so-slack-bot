@@ -7,38 +7,36 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
 const createChannel = `-- name: CreateChannel :one
-INSERT INTO channels (id, channel_name, bot_id, workspace_id, created_at)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, channel_name, bot_id, workspace_id, created_at
+INSERT INTO channels (id, channel_name, created_at, workspace_id)
+VALUES ($1, $2, $3, $4)
+RETURNING id, channel_name, created_at, workspace_id
 `
 
 type CreateChannelParams struct {
 	ID          string
 	ChannelName string
-	BotID       int32
-	WorkspaceID string
 	CreatedAt   time.Time
+	WorkspaceID sql.NullString
 }
 
 func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (Channel, error) {
 	row := q.db.QueryRowContext(ctx, createChannel,
 		arg.ID,
 		arg.ChannelName,
-		arg.BotID,
-		arg.WorkspaceID,
 		arg.CreatedAt,
+		arg.WorkspaceID,
 	)
 	var i Channel
 	err := row.Scan(
 		&i.ID,
 		&i.ChannelName,
-		&i.BotID,
-		&i.WorkspaceID,
 		&i.CreatedAt,
+		&i.WorkspaceID,
 	)
 	return i, err
 }

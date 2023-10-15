@@ -14,14 +14,14 @@ type Bot struct {
 	CreatedAt      time.Time
 	LastActivityAt time.Time
 	BotToken       string
+	WorkspaceID    sql.NullString
 }
 
 type Channel struct {
 	ID          string
 	ChannelName string
-	BotID       int32
-	WorkspaceID string
 	CreatedAt   time.Time
+	WorkspaceID sql.NullString
 }
 
 type Tag struct {
@@ -36,14 +36,13 @@ type Tag struct {
 }
 
 type TagSubscription struct {
-	TagID int32
-	BotID int32
+	TagID     int32
+	ChannelID string
 }
 
 type Workspace struct {
 	ID              string
-	WorkspaceName   sql.NullString
-	WorkspaceDomain sql.NullString
-	BotID           int32
+	WorkspaceName   string
+	WorkspaceDomain string
 	CreatedAt       time.Time
 }

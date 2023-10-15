@@ -13,7 +13,7 @@ import (
 const createBot = `-- name: CreateBot :one
 INSERT INTO bots (bot_token, created_at, last_activity_at)
 VALUES ($1, $2, $3)
-RETURNING id, created_at, last_activity_at, bot_token
+RETURNING id, created_at, last_activity_at, bot_token, workspace_id
 `
 
 type CreateBotParams struct {
@@ -30,12 +30,13 @@ func (q *Queries) CreateBot(ctx context.Context, arg CreateBotParams) (Bot, erro
 		&i.CreatedAt,
 		&i.LastActivityAt,
 		&i.BotToken,
+		&i.WorkspaceID,
 	)
 	return i, err
 }
 
 const getBotByID = `-- name: GetBotByID :one
-SELECT id, created_at, last_activity_at, bot_token FROM bots WHERE id = $1
+SELECT id, created_at, last_activity_at, bot_token, workspace_id FROM bots WHERE id = $1
 `
 
 func (q *Queries) GetBotByID(ctx context.Context, id int32) (Bot, error) {
@@ -46,12 +47,13 @@ func (q *Queries) GetBotByID(ctx context.Context, id int32) (Bot, error) {
 		&i.CreatedAt,
 		&i.LastActivityAt,
 		&i.BotToken,
+		&i.WorkspaceID,
 	)
 	return i, err
 }
 
 const getBotByToken = `-- name: GetBotByToken :one
-SELECT id, created_at, last_activity_at, bot_token FROM bots WHERE bot_token = $1
+SELECT id, created_at, last_activity_at, bot_token, workspace_id FROM bots WHERE bot_token = $1
 `
 
 func (q *Queries) GetBotByToken(ctx context.Context, botToken string) (Bot, error) {
@@ -62,12 +64,13 @@ func (q *Queries) GetBotByToken(ctx context.Context, botToken string) (Bot, erro
 		&i.CreatedAt,
 		&i.LastActivityAt,
 		&i.BotToken,
+		&i.WorkspaceID,
 	)
 	return i, err
 }
 
 const getBots = `-- name: GetBots :many
-SELECT id, created_at, last_activity_at, bot_token FROM bots
+SELECT id, created_at, last_activity_at, bot_token, workspace_id FROM bots
 `
 
 func (q *Queries) GetBots(ctx context.Context) ([]Bot, error) {
@@ -84,6 +87,7 @@ func (q *Queries) GetBots(ctx context.Context) ([]Bot, error) {
 			&i.CreatedAt,
 			&i.LastActivityAt,
 			&i.BotToken,
+			&i.WorkspaceID,
 		); err != nil {
 			return nil, err
 		}
