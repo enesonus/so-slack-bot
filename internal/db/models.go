@@ -5,7 +5,6 @@
 package db
 
 import (
-	"database/sql"
 	"time"
 )
 
@@ -14,14 +13,14 @@ type Bot struct {
 	CreatedAt      time.Time
 	LastActivityAt time.Time
 	BotToken       string
-	WorkspaceID    sql.NullString
+	WorkspaceID    string
 }
 
 type Channel struct {
 	ID          string
 	ChannelName string
 	CreatedAt   time.Time
-	WorkspaceID sql.NullString
+	WorkspaceID string
 }
 
 type Tag struct {
@@ -36,7 +35,7 @@ type Tag struct {
 }
 
 type TagSubscription struct {
-	TagID     int32
+	Tag       string
 	ChannelID string
 }
 
