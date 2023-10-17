@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/enesonus/so-slack-bot/internal/bot"
 	"github.com/enesonus/so-slack-bot/internal/db"
 	"github.com/enesonus/so-slack-bot/internal/server"
 	"github.com/go-chi/chi/v5"
@@ -18,31 +18,6 @@ import (
 
 	_ "github.com/lib/pq"
 )
-
-type apiConfig struct {
-	DB *db.Queries
-}
-
-func setDatabase() *db.Queries {
-
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Fatal("DATABASE_URL must be set")
-	}
-
-	conn, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		log.Fatal("Can't connect to DB: ", err)
-	}
-
-	database := db.New(conn)
-	apiCfg := apiConfig{
-		DB: database,
-	}
-	fmt.Printf("apiCfg: %v\n", apiCfg)
-
-	return database
-}
 
 func testDatabase(database *db.Queries, count int) {
 
@@ -71,7 +46,21 @@ func testDatabase(database *db.Queries, count int) {
 	}
 	// fmt.Println("Bot just created: ", botFromDB)
 	fmt.Printf("Total Bot count: %v\n", len(bots))
+}
 
+func startAllBots() {
+
+	databaseObject, err := db.GetDatabase()
+	if err != nil {
+		log.Fatal("Couldn't get database: ", err)
+	}
+	bots, err := databaseObject.GetBots(context.Background())
+	if err != nil {
+		log.Fatal("Couldn't get bots: ", err)
+	}
+	for _, newbot := range bots {
+		bot.StartSlackBot(newbot.BotToken)
+	}
 }
 
 func main() {
@@ -82,11 +71,6 @@ func main() {
 		log.Fatal("PORT must be set")
 	}
 	fmt.Println("Port: ", port)
-
-	databaseObject := setDatabase()
-	server.FetchTagsAndSaveToDB(databaseObject, 1, 654)
-
-	// testDatabase(databaseObject, 5)
 
 	router := chi.NewRouter()
 
@@ -110,8 +94,9 @@ func main() {
 
 	router.Get("/", server.CheckReadiness)
 	router.Get("/healthz", server.CheckReadiness)
-	router.Get("/access_token/", server.GetAccessToken)
+	router.Get("/access_token/", server.GetAccessTokenAndStartBot)
 
+	startAllBots()
 	srv.ListenAndServe()
 
 }

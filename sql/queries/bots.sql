@@ -1,6 +1,6 @@
 -- name: CreateBot :one
-INSERT INTO bots (bot_token, created_at, last_activity_at)
-VALUES ($1, $2, $3)
+INSERT INTO bots (bot_token, created_at, last_activity_at, workspace_id)
+VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: GetBotByID :one

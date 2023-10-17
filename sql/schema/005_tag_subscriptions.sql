@@ -1,8 +1,8 @@
 -- +goose Up
 CREATE TABLE tag_subscriptions (
-    tag_id INT NOT NULL REFERENCES tags(id),
+    tag TEXT NOT NULL REFERENCES tags(name),
     channel_id TEXT NOT NULL REFERENCES channels(id),
-    PRIMARY KEY (tag_id, channel_id)
+    PRIMARY KEY (tag, channel_id)
 );
 
 -- +goose Down

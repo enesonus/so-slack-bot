@@ -15,10 +15,9 @@ import (
 	"github.com/enesonus/so-slack-bot/internal/db"
 )
 
-func GetAccessToken(w http.ResponseWriter, r *http.Request) {
+func GetAccessTokenAndStartBot(w http.ResponseWriter, r *http.Request) {
 
 	code := r.URL.Query().Get("code")
-	state := r.URL.Query().Get("state")
 	slack_url := "https://slack.com/api/oauth.v2.access"
 	client_secret := os.Getenv("SLACK_BOT_CLIENT_SECRET")
 	client_id := os.Getenv("SLACK_BOT_CLIENT_ID")
@@ -42,19 +41,25 @@ func GetAccessToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if resJson.OK {
-		bot.StartSlackBot(resJson.AccessToken)
-		respondWithJSON(w, 200, map[string]string{"access_token": resJson.AccessToken, "state": state})
-	} else {
-		var errJson struct {
-			OK    string `json:"ok"`
-			Error string `json:"error"`
-		}
-		err = json.Unmarshal(resBody, &errJson)
+		err = bot.StartSlackBot(resJson.AccessToken)
 		if err != nil {
-			fmt.Printf("client: could not unmarshal response body: %s\n", err)
+			fmt.Printf("client: could not start slack bot: %s\n", err)
+			respondWithJSON(w, 400, map[string]string{"ready": "not ok", "bot_state": "not running", "error": err.Error()})
+			return
 		}
-		respondWithJSON(w, 400, errJson)
+		respondWithJSON(w, 200, map[string]string{"ready": "ok", "bot_state": "running"})
+		return
 	}
+	var errJson struct {
+		OK    string `json:"ok"`
+		Error string `json:"error"`
+	}
+	err = json.Unmarshal(resBody, &errJson)
+	if err != nil {
+		fmt.Printf("client: could not unmarshal response body: %s\n", err)
+	}
+	respondWithJSON(w, 400, errJson)
+
 }
 
 func FetchTagsAndSaveToDB(database *db.Queries, startPage int, endPage int) {
@@ -107,10 +112,11 @@ func FetchTagsAndSaveToDB(database *db.Queries, startPage int, endPage int) {
 		}
 		sleepTime := time.Duration((rand.Intn(20))) * time.Second
 		fmt.Print(
-			"page: ", pageNumber, " hasMore: ",
-			hasMore, " errCount: ",
-			errCount, " sleepTime: ",
-			sleepTime, "\n")
+			"page: ", pageNumber,
+			" hasMore: ", hasMore,
+			" errCount: ", errCount,
+			" sleepTime: ", sleepTime,
+			"\n")
 		pageNumber++
 		hasMore = resJson.HasMore
 		res.Body.Close()

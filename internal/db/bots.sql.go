@@ -11,8 +11,8 @@ import (
 )
 
 const createBot = `-- name: CreateBot :one
-INSERT INTO bots (bot_token, created_at, last_activity_at)
-VALUES ($1, $2, $3)
+INSERT INTO bots (bot_token, created_at, last_activity_at, workspace_id)
+VALUES ($1, $2, $3, $4)
 RETURNING id, created_at, last_activity_at, bot_token, workspace_id
 `
 
@@ -20,10 +20,16 @@ type CreateBotParams struct {
 	BotToken       string
 	CreatedAt      time.Time
 	LastActivityAt time.Time
+	WorkspaceID    string
 }
 
 func (q *Queries) CreateBot(ctx context.Context, arg CreateBotParams) (Bot, error) {
-	row := q.db.QueryRowContext(ctx, createBot, arg.BotToken, arg.CreatedAt, arg.LastActivityAt)
+	row := q.db.QueryRowContext(ctx, createBot,
+		arg.BotToken,
+		arg.CreatedAt,
+		arg.LastActivityAt,
+		arg.WorkspaceID,
+	)
 	var i Bot
 	err := row.Scan(
 		&i.ID,
