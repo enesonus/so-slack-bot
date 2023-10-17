@@ -3,7 +3,6 @@ package bot
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -11,71 +10,6 @@ import (
 	"github.com/shomali11/slacker"
 	"github.com/slack-go/slack"
 )
-
-var pingPong = &slacker.CommandDefinition{
-	Description: "Ping!",
-	Examples:    []string{"ping", "pang"},
-	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-		response.Reply("pong", slacker.WithThreadReply(true))
-	},
-}
-
-var echoWordDef = &slacker.CommandDefinition{
-	Description: "Echo a word!",
-	Examples:    []string{"echo hello"},
-	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-		word := request.Param("word")
-		word2 := request.Param("word2")
-		response.Reply("word1: " + word + " word2: " + word2)
-	},
-}
-
-var saySentenceDef = &slacker.CommandDefinition{
-	Description: "Say a sentence!",
-	Examples:    []string{"say hello there everyone!"},
-	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-		sentence := request.StringParam("sentence", "")
-		response.Reply(sentence)
-	},
-}
-
-var repeatNtimesDef = &slacker.CommandDefinition{
-	Description: "Repeat a word a number of times!",
-	Examples:    []string{"repeat hello 10"},
-	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-		word := request.StringParam("word", "Hello!")
-		number := request.IntegerParam("number", 1)
-		for i := 0; i < number; i++ {
-			response.Reply(word)
-		}
-	},
-}
-
-var messageReplyDefinition = &slacker.CommandDefinition{
-	Description: "Tests errors in new messages",
-	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-		response.ReportError(errors.New("oops, an error occurred"))
-	},
-}
-
-var uploadDef = &slacker.CommandDefinition{
-	Description: "Upload a sentence!",
-	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-		sentence := request.Param("sentence")
-		apiClient := botCtx.APIClient()
-		event := botCtx.Event()
-
-		if event.ChannelID != "" {
-			fmt.Printf("Uploading file to channel %s\n", event.ChannelID)
-			apiClient.PostMessage(event.ChannelID, slack.MsgOptionText("Uploading file ...", false))
-			_, err := apiClient.UploadFile(slack.FileUploadParameters{Content: sentence, Channels: []string{event.ChannelID}})
-			if err != nil {
-				response.ReportError(fmt.Errorf("error encountered when uploading file: %v", err))
-
-			}
-		}
-	},
-}
 
 // ##############################################################################################################################
 // bot.Command("upload <sentence>", uploadDef)
@@ -85,9 +19,6 @@ var uploadDef = &slacker.CommandDefinition{
 // bot.Command("repeat <word> {number}", repeatNtimesDef)
 // bot.Command("message", messageReplyDefinition)
 
-var StackOverflowChannelID = ""
-var StackOverflowChannelName = ""
-
 var removeSOChannelDef = &slacker.CommandDefinition{
 	Description: "Remove the channel to send SO notifications to",
 	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
@@ -95,10 +26,19 @@ var removeSOChannelDef = &slacker.CommandDefinition{
 		event := botCtx.Event()
 
 		if event.ChannelID != "" {
-			StackOverflowChannelName = ""
 			fmt.Printf("Stack Overflow channel is removed\n")
 			apiClient.PostMessage(event.ChannelID, slack.MsgOptionText("SO question notification channel is removed", false))
-			StackOverflowChannelID = ""
+
+			databaseObject, err := db.GetDatabase()
+			if err != nil {
+				fmt.Printf("Error connecting database: %v\n", err)
+			}
+
+			_, err = databaseObject.DeleteChannel(context.Background(), event.ChannelID)
+			if err != nil {
+				fmt.Printf("Error deleting channel: %v\n", err)
+				return
+			}
 			fmt.Printf("Stack Overflow channel ID is removed\n")
 		}
 	},
@@ -109,10 +49,8 @@ var setSOChannelDef = &slacker.CommandDefinition{
 	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
 		apiClient := botCtx.APIClient()
 		event := botCtx.Event()
-		tag := request.StringParam("tag", "Hello!")
 
 		if event.ChannelID != "" {
-			databaseObject := setDatabase()
 			team, err := apiClient.GetTeamInfo()
 			if err != nil {
 				fmt.Printf("Error getting team info: %v\n", err)
@@ -120,17 +58,26 @@ var setSOChannelDef = &slacker.CommandDefinition{
 			channelParams := db.CreateChannelParams{
 				ID:          event.ChannelID,
 				ChannelName: event.Channel.Name,
-				BotID:       1,
 				WorkspaceID: team.ID,
 				CreatedAt:   time.Now(),
 			}
-			databaseObject.CreateChannel(context.Background(), channelParams)
 
-			fmt.Printf("Stack Overflow channel is set to %s\n", event.Channel.Name)
+			databaseObject, err := db.GetDatabase()
+			if err != nil {
+				fmt.Printf("Error connecting database: %v\n", err)
+			}
+
+			_, err = databaseObject.CreateChannel(context.Background(), channelParams)
+			if err != nil {
+				fmt.Printf("Error creating channel: %v\n", err)
+				return
+			}
+
+			fmt.Printf("Stack Overflow notification channel is set to %s\n", event.Channel.Name)
 			apiClient.PostMessage(event.ChannelID, slack.MsgOptionText(
-				"SO question notification channel is set to: "+StackOverflowChannelName+" searching for tag: "+tag, false))
+				"SO question notification channel is set to: "+event.Channel.Name, false))
 
-			go BotStackOverflow(botCtx, event.ChannelID, tag)
+			// go BotStackOverflow(botCtx, event.ChannelID, "")
 
 			fmt.Printf("A new instance of Stack Overflow channel ID is set to %s\n", event.ChannelID)
 		}
@@ -145,10 +92,24 @@ var addTagDef = &slacker.CommandDefinition{
 		tag := request.StringParam("tag", "no_tag")
 
 		if event.ChannelID != "" && tag != "no_tag" {
-			StackOverflowChannelName = event.Channel.Name
-			fmt.Printf("Tag *%s* added to %s\n", tag, StackOverflowChannelName)
+			params := db.BindTagParams{
+				ChannelID: event.ChannelID,
+				Tag:       tag,
+			}
+
+			databaseObject, err := db.GetDatabase()
+			if err != nil {
+				fmt.Printf("Error connecting database: %v\n", err)
+			}
+
+			_, err = databaseObject.BindTag(context.Background(), params)
+			if err != nil {
+				fmt.Printf("Error binding tag: %v\n", err)
+				return
+			}
+			fmt.Printf("Tag *%s* added to %s\n", tag, event.Channel.Name)
 			apiClient.PostMessage(event.ChannelID, slack.MsgOptionText(
-				"New Stack Overflow questions about *"+tag+"* will be sent to channel *"+StackOverflowChannelName+"*", false))
+				"New Stack Overflow questions about *"+tag+"* will be sent to channel *"+event.Channel.Name+"*", false))
 
 			go BotStackOverflow(botCtx, event.ChannelID, tag)
 
