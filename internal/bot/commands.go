@@ -2,7 +2,6 @@ package bot
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -12,51 +11,64 @@ import (
 	"github.com/shomali11/slacker"
 )
 
-func setDatabase() *db.Queries {
+func StartSlackBot(slackBotToken string) error {
 
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Fatal("DATABASE_URL must be set")
-	}
-
-	conn, err := sql.Open("postgres", dbURL)
-	if err != nil {
-		log.Fatal("Can't connect to DB: ", err)
-	}
-
-	database := db.New(conn)
-
-	return database
-}
-
-func StartSlackBot(slackBotToken string) {
-
-	fmt.Println(slackBotToken)
+	fmt.Println("Slack Bot Token: ", slackBotToken)
 	slackBot := slacker.NewClient(slackBotToken, os.Getenv("SLACK_APP_TOKEN"))
 
 	slackBot.Command("set_so_channel", setSOChannelDef)
 	slackBot.Command("remove_so_channel", removeSOChannelDef)
 	slackBot.Command("getinfo", getUserInfoDef)
-	slackBot.Command("add_tag {tag}", setSOChannelDef)
+	slackBot.Command("add_tag {tag}", addTagDef)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	go PrintCommandEvents(slackBot.CommandEvents())
 
-	var err error
+	err := error(nil)
 	go func() {
 		err = slackBot.Listen(ctx)
+		defer cancel()
 	}()
 	if err != nil {
 		log.Printf("Error listening to Slack Bot: %v, Token: %v\n", err, slackBotToken)
+		return fmt.Errorf("error listening to slack bot: %v, token: %v", err, slackBotToken)
+	}
+
+	teamInfo, err := slackBot.APIClient().GetTeamInfo()
+	if err != nil {
+		log.Printf("Error getting team info: %v\n", err)
+		return fmt.Errorf("error getting team info: %v", err)
+	}
+
+	workspaceParams := db.GetOrCreateWorkspaceParams{
+		ID:              teamInfo.ID,
+		WorkspaceName:   teamInfo.Name,
+		WorkspaceDomain: teamInfo.Domain,
+		CreatedAt:       time.Now(),
+	}
+
+	databaseObject, err := db.GetDatabase()
+	if err != nil {
+		fmt.Printf("Error connecting database: %v\n", err)
+	}
+
+	_, err = databaseObject.GetOrCreateWorkspace(context.Background(), workspaceParams)
+	if err != nil {
+		log.Printf("Error creating workspace: %v\n", err)
+		return fmt.Errorf("error creating workspace: %v", err)
 	}
 	botParams := db.CreateBotParams{
 		BotToken:       slackBotToken,
 		CreatedAt:      time.Now(),
 		LastActivityAt: time.Now(),
+		WorkspaceID:    teamInfo.ID,
 	}
-	databaseObject := setDatabase()
-	databaseObject.CreateBot(context.Background(), botParams)
-	fmt.Println("Bot is not listening...")
+	_, err = databaseObject.CreateBot(context.Background(), botParams)
+	if err != nil {
+		log.Printf("Error creating bot: %v\n", err)
+		return fmt.Errorf("error creating bot: %v", err)
+	}
+
+	return nil
 }
