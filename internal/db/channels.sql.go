@@ -7,7 +7,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"time"
 )
 
@@ -21,7 +20,7 @@ type CreateChannelParams struct {
 	ID          string
 	ChannelName string
 	CreatedAt   time.Time
-	WorkspaceID sql.NullString
+	WorkspaceID string
 }
 
 func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (Channel, error) {
@@ -31,6 +30,23 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 		arg.CreatedAt,
 		arg.WorkspaceID,
 	)
+	var i Channel
+	err := row.Scan(
+		&i.ID,
+		&i.ChannelName,
+		&i.CreatedAt,
+		&i.WorkspaceID,
+	)
+	return i, err
+}
+
+const deleteChannel = `-- name: DeleteChannel :one
+DELETE FROM channels WHERE id = $1
+RETURNING id, channel_name, created_at, workspace_id
+`
+
+func (q *Queries) DeleteChannel(ctx context.Context, id string) (Channel, error) {
+	row := q.db.QueryRowContext(ctx, deleteChannel, id)
 	var i Channel
 	err := row.Scan(
 		&i.ID,

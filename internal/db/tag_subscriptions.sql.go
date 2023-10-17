@@ -10,19 +10,19 @@ import (
 )
 
 const bindTag = `-- name: BindTag :one
-INSERT INTO tag_subscriptions (tag_id, channel_id)
+INSERT INTO tag_subscriptions (tag, channel_id)
 VALUES ($1, $2)
-RETURNING tag_id, channel_id
+RETURNING tag, channel_id
 `
 
 type BindTagParams struct {
-	TagID     int32
+	Tag       string
 	ChannelID string
 }
 
 func (q *Queries) BindTag(ctx context.Context, arg BindTagParams) (TagSubscription, error) {
-	row := q.db.QueryRowContext(ctx, bindTag, arg.TagID, arg.ChannelID)
+	row := q.db.QueryRowContext(ctx, bindTag, arg.Tag, arg.ChannelID)
 	var i TagSubscription
-	err := row.Scan(&i.TagID, &i.ChannelID)
+	err := row.Scan(&i.Tag, &i.ChannelID)
 	return i, err
 }
