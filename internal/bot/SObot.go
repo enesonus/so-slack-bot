@@ -20,19 +20,20 @@ func BotStackOverflow(botCtx slacker.BotContext, channelID string, tag string) {
 	checkInterval, err := strconv.Atoi(os.Getenv("NEW_QUESTION_CHECK_INTERVAL_SECONDS"))
 
 	if err != nil {
-		log.Fatal("Couldn't get checkInterval from .env: " + err.Error())
 		checkInterval = 60
+		log.Printf("Couldn't get NEW_QUESTION_CHECK_INTERVAL_SECONDS from .env: %v\nDefaulting: %v\n", err.Error(), checkInterval)
 	}
+	ticker := time.NewTicker(time.Duration(checkInterval) * time.Second)
 
-	for range time.Tick(time.Duration(checkInterval) * time.Second) {
+	for range ticker.C {
 		var questions []StackOverflowQuestion
 		var questionsToPost []StackOverflowQuestion
 
 		if channelID != "" {
 			timePeriod, err := strconv.Atoi(os.Getenv("QUESTION_QUERY_TIME_PERIOD_MINUTES"))
 			if err != nil {
-				log.Println("Couldn't get timePeriod from .env: " + err.Error())
 				timePeriod = 60
+				log.Printf("Couldn't get QUESTION_QUERY_TIME_PERIOD_MINUTES from .env: %v\nDefaulting: %v\n", err.Error(), timePeriod)
 			}
 
 			fromDate := time.Now().Add(time.Duration(-timePeriod) * time.Minute)
@@ -51,7 +52,6 @@ func BotStackOverflow(botCtx slacker.BotContext, channelID string, tag string) {
 				questionText := fmt.Sprintf(questionTemplate, tag, decodedName, question.Link, question.Owner.Link)
 
 				botCtx.APIClient().PostMessage(channelID, slack.MsgOptionText(questionText, false))
-
 				if question.Creation_date > lastQuestionDate.Unix() {
 					lastQuestionDate = time.Unix(question.Creation_date, 0)
 				}
