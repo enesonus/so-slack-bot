@@ -26,3 +26,111 @@ func (q *Queries) BindTag(ctx context.Context, arg BindTagParams) (TagSubscripti
 	err := row.Scan(&i.Tag, &i.ChannelID)
 	return i, err
 }
+
+const getSubscriberChannels = `-- name: GetSubscriberChannels :one
+SELECT 
+    channels.id, channels.channel_name, channels.created_at, channels.workspace_id, channels.bot_token
+FROM 
+    channels
+JOIN 
+    tag_subscriptions 
+    ON channels.id = tag_subscriptions.channel_id
+WHERE 
+    tag_subscriptions.tag = $1
+`
+
+func (q *Queries) GetSubscriberChannels(ctx context.Context, tag string) (Channel, error) {
+	row := q.db.QueryRowContext(ctx, getSubscriberChannels, tag)
+	var i Channel
+	err := row.Scan(
+		&i.ID,
+		&i.ChannelName,
+		&i.CreatedAt,
+		&i.WorkspaceID,
+		&i.BotToken,
+	)
+	return i, err
+}
+
+const getTagSubscriptions = `-- name: GetTagSubscriptions :one
+SELECT tag, channel_id FROM tag_subscriptions
+`
+
+func (q *Queries) GetTagSubscriptions(ctx context.Context) (TagSubscription, error) {
+	row := q.db.QueryRowContext(ctx, getTagSubscriptions)
+	var i TagSubscription
+	err := row.Scan(&i.Tag, &i.ChannelID)
+	return i, err
+}
+
+const getTagSubscriptionsWithChannelId = `-- name: GetTagSubscriptionsWithChannelId :many
+SELECT tag, channel_id FROM tag_subscriptions WHERE channel_id = $1
+`
+
+func (q *Queries) GetTagSubscriptionsWithChannelId(ctx context.Context, channelID string) ([]TagSubscription, error) {
+	rows, err := q.db.QueryContext(ctx, getTagSubscriptionsWithChannelId, channelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TagSubscription
+	for rows.Next() {
+		var i TagSubscription
+		if err := rows.Scan(&i.Tag, &i.ChannelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTagSubscriptionsWithName = `-- name: GetTagSubscriptionsWithName :many
+SELECT tag, channel_id FROM tag_subscriptions WHERE tag = $1
+`
+
+func (q *Queries) GetTagSubscriptionsWithName(ctx context.Context, tag string) ([]TagSubscription, error) {
+	rows, err := q.db.QueryContext(ctx, getTagSubscriptionsWithName, tag)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TagSubscription
+	for rows.Next() {
+		var i TagSubscription
+		if err := rows.Scan(&i.Tag, &i.ChannelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const unbindTag = `-- name: UnbindTag :one
+DELETE FROM tag_subscriptions
+WHERE tag = $1 AND channel_id = $2
+RETURNING tag, channel_id
+`
+
+type UnbindTagParams struct {
+	Tag       string
+	ChannelID string
+}
+
+func (q *Queries) UnbindTag(ctx context.Context, arg UnbindTagParams) (TagSubscription, error) {
+	row := q.db.QueryRowContext(ctx, unbindTag, arg.Tag, arg.ChannelID)
+	var i TagSubscription
+	err := row.Scan(&i.Tag, &i.ChannelID)
+	return i, err
+}
