@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/enesonus/so-slack-bot/internal/bot"
 	"github.com/enesonus/so-slack-bot/internal/db"
@@ -19,48 +18,30 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func testDatabase(database *db.Queries, count int) {
-
-	start := time.Now()
-	for i := 0; i < count; i++ {
-
-		params := db.CreateBotParams{
-			CreatedAt:      time.Now(),
-			LastActivityAt: time.Now(),
-			BotToken:       "firstBotToken",
-		}
-
-		_, err := database.CreateBot(context.Background(), params)
-		if err != nil {
-			log.Fatal("Couldn't create bot: ", err)
-		}
-	}
-	fmt.Printf("Time to create %v bots: %v\n", count, time.Since(start))
-
-	start = time.Now()
-	bots, err := database.GetBots(context.Background())
-	fmt.Printf("Time to get bots: %v\n", time.Since(start))
-
-	if err != nil {
-		log.Fatal("Couldn't get bots: ", err)
-	}
-	// fmt.Println("Bot just created: ", botFromDB)
-	fmt.Printf("Total Bot count: %v\n", len(bots))
-}
-
 func startAllBots() {
+	fmt.Println("Starting all bots")
+	botCount := 0
 
 	databaseObject, err := db.GetDatabase()
 	if err != nil {
 		log.Fatal("Couldn't get database: ", err)
 	}
+
 	bots, err := databaseObject.GetBots(context.Background())
 	if err != nil {
 		log.Fatal("Couldn't get bots: ", err)
 	}
+
 	for _, newbot := range bots {
-		bot.StartSlackBot(newbot.BotToken)
+		_, err = bot.StartSlackBot(newbot.BotToken)
+		botCount++
+		if err != nil {
+			fmt.Printf("Error starting bot: %v\n", err)
+			botCount--
+		}
 	}
+
+	fmt.Printf("%v bots in DB, %v bots started\n", len(bots), botCount)
 }
 
 func main() {
