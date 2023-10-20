@@ -11,14 +11,14 @@ import (
 	"github.com/shomali11/slacker"
 )
 
-func StartSlackBot(slackBotToken string) (*slacker.Slacker, error) {
+func CreateSlackBot(slackBotToken string) (*slacker.Slacker, error) {
 
 	slackBot := slacker.NewClient(slackBotToken, os.Getenv("SLACK_APP_TOKEN"))
 	slackBot.Command("set_so_channel", setSOChannelDef)
 	slackBot.Command("remove_so_channel", removeSOChannelDef)
 	slackBot.Command("getinfo", getUserInfoDef)
-	slackBot.Command("show_tags", showTagsDef)
 	slackBot.Command("add_tag {tag}", addTagDef)
+	slackBot.Command("show_tags", showTagsDef)
 
 	go PrintCommandEvents(slackBot.CommandEvents())
 
@@ -59,6 +59,32 @@ func StartSlackBot(slackBotToken string) (*slacker.Slacker, error) {
 		return slackBot, fmt.Errorf("error adding bot to DB: %v", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		err = slackBot.Listen(ctx)
+		defer cancel()
+	}()
+
+	if err != nil {
+		log.Printf("Error listening to Slack Bot: %v, Token: %v\n", err, slackBotToken)
+		return nil, fmt.Errorf("error listening to slack bot: %v, token: %v", err, slackBotToken)
+	}
+
+	return slackBot, nil
+}
+
+func StartSlackBot(slackBotToken string) (*slacker.Slacker, error) {
+
+	slackBot := slacker.NewClient(slackBotToken, os.Getenv("SLACK_APP_TOKEN"))
+	slackBot.Command("set_so_channel", setSOChannelDef)
+	slackBot.Command("remove_so_channel", removeSOChannelDef)
+	slackBot.Command("getinfo", getUserInfoDef)
+	slackBot.Command("add_tag {tag}", addTagDef)
+	slackBot.Command("show_tags", showTagsDef)
+
+	go PrintCommandEvents(slackBot.CommandEvents())
+
+	err := error(nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		err = slackBot.Listen(ctx)
