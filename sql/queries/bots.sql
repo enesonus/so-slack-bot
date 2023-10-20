@@ -23,5 +23,8 @@ SELECT * FROM bots WHERE id = $1;
 -- name: GetBotByToken :one
 SELECT * FROM bots WHERE bot_token = $1;
 
+-- name: GetBotByWorkspaceID :one
+SELECT * FROM bots WHERE workspace_id = $1;
+
 -- name: GetBots :many
 SELECT * FROM bots;

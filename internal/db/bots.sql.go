@@ -75,6 +75,23 @@ func (q *Queries) GetBotByToken(ctx context.Context, botToken string) (Bot, erro
 	return i, err
 }
 
+const getBotByWorkspaceID = `-- name: GetBotByWorkspaceID :one
+SELECT id, created_at, last_activity_at, bot_token, workspace_id FROM bots WHERE workspace_id = $1
+`
+
+func (q *Queries) GetBotByWorkspaceID(ctx context.Context, workspaceID string) (Bot, error) {
+	row := q.db.QueryRowContext(ctx, getBotByWorkspaceID, workspaceID)
+	var i Bot
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.LastActivityAt,
+		&i.BotToken,
+		&i.WorkspaceID,
+	)
+	return i, err
+}
+
 const getBots = `-- name: GetBots :many
 SELECT id, created_at, last_activity_at, bot_token, workspace_id FROM bots
 `
