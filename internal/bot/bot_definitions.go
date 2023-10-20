@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/enesonus/so-slack-bot/internal/db"
@@ -55,21 +56,32 @@ var setSOChannelDef = &slacker.CommandDefinition{
 			if err != nil {
 				fmt.Printf("Error getting team info: %v\n", err)
 			}
+			dbObj, err := db.GetDatabase()
+			if err != nil {
+				fmt.Printf("Error connecting database: %v\n", err)
+			}
+
+			bot, err := dbObj.GetBotByWorkspaceID(context.Background(), team.ID)
+			if err != nil {
+				fmt.Printf("Error getting bot: %v\n", err)
+				return
+			}
+
 			channelParams := db.CreateChannelParams{
 				ID:          event.ChannelID,
 				ChannelName: event.Channel.Name,
 				WorkspaceID: team.ID,
 				CreatedAt:   time.Now(),
+				BotToken:    bot.BotToken,
 			}
 
-			databaseObject, err := db.GetDatabase()
-			if err != nil {
-				fmt.Printf("Error connecting database: %v\n", err)
-			}
-
-			_, err = databaseObject.CreateChannel(context.Background(), channelParams)
+			_, err = dbObj.CreateChannel(context.Background(), channelParams)
 			if err != nil {
 				fmt.Printf("Error creating channel: %v\n", err)
+				if strings.Contains(err.Error(), "duplicate key value") {
+					apiClient.PostMessage(event.ChannelID, slack.MsgOptionText(
+						"This channel is already set as Stack Overflow Notification channel: "+event.Channel.Name, false))
+				}
 				return
 			}
 
@@ -79,7 +91,7 @@ var setSOChannelDef = &slacker.CommandDefinition{
 
 			// go BotStackOverflow(botCtx, event.ChannelID, "")
 
-			fmt.Printf("A new instance of Stack Overflow channel ID is set to %s\n", event.ChannelID)
+			fmt.Printf("A new instance of Stack Overflow channel ID is set to *%s*\n", event.ChannelID)
 		}
 	},
 }
@@ -111,7 +123,7 @@ var addTagDef = &slacker.CommandDefinition{
 			apiClient.PostMessage(event.ChannelID, slack.MsgOptionText(
 				"New Stack Overflow questions about *"+tag+"* will be sent to channel *"+event.Channel.Name+"*", false))
 
-			go BotStackOverflow(botCtx, event.ChannelID, tag)
+			// go BotStackOverflow(botCtx, event.ChannelID, tag)
 
 			fmt.Printf("A new instance of Stack Overflow channel ID is set to %s\n", event.ChannelID)
 		}
@@ -154,5 +166,33 @@ var getUserInfoDef = &slacker.CommandDefinition{
 		response.Reply(fmt.Sprintf("*Type*: %s", botCtx.Event().Type))
 		response.Reply(fmt.Sprintf("*UserProfile*: %s", profileA))
 
+	},
+}
+
+var showTagsDef = &slacker.CommandDefinition{
+	Description: "Get tag info",
+	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
+		channelID := botCtx.Event().ChannelID
+		channelName := botCtx.Event().Channel.Name
+		databaseObject, err := db.GetDatabase()
+
+		if err != nil {
+			fmt.Printf("Error connecting database: %v\n", err)
+			response.Reply(fmt.Sprintf("Error connecting database: %v\n", err))
+			return
+		}
+		tags, err := databaseObject.GetTagsOfChannel(context.Background(), channelID)
+		if err != nil {
+			fmt.Printf("Error getting channels: %v\n", err)
+			response.Reply(fmt.Sprintf("Error getting channels: %v\n", err))
+			return
+		}
+		if len(tags) == 0 {
+			response.Reply(fmt.Sprintf("No tags bound to channel: %v", channelName))
+			return
+		}
+		for _, tag := range tags {
+			response.Reply(fmt.Sprintf("*Tag bound to %v channel*: %v", channelName, tag.Name))
+		}
 	},
 }
