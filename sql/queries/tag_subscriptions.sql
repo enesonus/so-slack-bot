@@ -17,7 +17,8 @@ SELECT * FROM tag_subscriptions WHERE tag = $1;
 -- name: GetTagSubscriptionsWithChannelId :many
 SELECT * FROM tag_subscriptions WHERE channel_id = $1;
 
--- name: GetSubscriberChannels :one
+
+-- name: GetSubscriberChannels :many
 SELECT 
     channels.*
 FROM 
@@ -27,3 +28,14 @@ JOIN
     ON channels.id = tag_subscriptions.channel_id
 WHERE 
     tag_subscriptions.tag = $1;
+
+-- name: GetTagsOfChannel :many
+SELECT 
+    tags.*
+FROM 
+    tags
+JOIN 
+    tag_subscriptions 
+    ON tags.name = tag_subscriptions.tag
+WHERE 
+    tag_subscriptions.channel_id = $1;

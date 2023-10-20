@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/lib/pq"
 )
 
 const bindTag = `-- name: BindTag :one
@@ -27,7 +29,7 @@ func (q *Queries) BindTag(ctx context.Context, arg BindTagParams) (TagSubscripti
 	return i, err
 }
 
-const getSubscriberChannels = `-- name: GetSubscriberChannels :one
+const getSubscriberChannels = `-- name: GetSubscriberChannels :many
 SELECT 
     channels.id, channels.channel_name, channels.created_at, channels.workspace_id, channels.bot_token
 FROM 
@@ -39,17 +41,33 @@ WHERE
     tag_subscriptions.tag = $1
 `
 
-func (q *Queries) GetSubscriberChannels(ctx context.Context, tag string) (Channel, error) {
-	row := q.db.QueryRowContext(ctx, getSubscriberChannels, tag)
-	var i Channel
-	err := row.Scan(
-		&i.ID,
-		&i.ChannelName,
-		&i.CreatedAt,
-		&i.WorkspaceID,
-		&i.BotToken,
-	)
-	return i, err
+func (q *Queries) GetSubscriberChannels(ctx context.Context, tag string) ([]Channel, error) {
+	rows, err := q.db.QueryContext(ctx, getSubscriberChannels, tag)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Channel
+	for rows.Next() {
+		var i Channel
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChannelName,
+			&i.CreatedAt,
+			&i.WorkspaceID,
+			&i.BotToken,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getTagSubscriptions = `-- name: GetTagSubscriptions :one
@@ -104,6 +122,50 @@ func (q *Queries) GetTagSubscriptionsWithName(ctx context.Context, tag string) (
 	for rows.Next() {
 		var i TagSubscription
 		if err := rows.Scan(&i.Tag, &i.ChannelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTagsOfChannel = `-- name: GetTagsOfChannel :many
+SELECT 
+    tags.id, tags.has_synonyms, tags.synonyms, tags.is_moderator_only, tags.is_required, tags.count, tags.name, tags.status
+FROM 
+    tags
+JOIN 
+    tag_subscriptions 
+    ON tags.name = tag_subscriptions.tag
+WHERE 
+    tag_subscriptions.channel_id = $1
+`
+
+func (q *Queries) GetTagsOfChannel(ctx context.Context, channelID string) ([]Tag, error) {
+	rows, err := q.db.QueryContext(ctx, getTagsOfChannel, channelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Tag
+	for rows.Next() {
+		var i Tag
+		if err := rows.Scan(
+			&i.ID,
+			&i.HasSynonyms,
+			pq.Array(&i.Synonyms),
+			&i.IsModeratorOnly,
+			&i.IsRequired,
+			&i.Count,
+			&i.Name,
+			&i.Status,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
