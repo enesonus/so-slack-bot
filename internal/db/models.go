@@ -21,6 +21,7 @@ type Channel struct {
 	ChannelName string
 	CreatedAt   time.Time
 	WorkspaceID string
+	BotToken    string
 }
 
 type Tag struct {

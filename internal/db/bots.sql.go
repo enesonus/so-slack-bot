@@ -75,6 +75,23 @@ func (q *Queries) GetBotByToken(ctx context.Context, botToken string) (Bot, erro
 	return i, err
 }
 
+const getBotByWorkspaceID = `-- name: GetBotByWorkspaceID :one
+SELECT id, created_at, last_activity_at, bot_token, workspace_id FROM bots WHERE workspace_id = $1
+`
+
+func (q *Queries) GetBotByWorkspaceID(ctx context.Context, workspaceID string) (Bot, error) {
+	row := q.db.QueryRowContext(ctx, getBotByWorkspaceID, workspaceID)
+	var i Bot
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.LastActivityAt,
+		&i.BotToken,
+		&i.WorkspaceID,
+	)
+	return i, err
+}
+
 const getBots = `-- name: GetBots :many
 SELECT id, created_at, last_activity_at, bot_token, workspace_id FROM bots
 `
@@ -106,4 +123,44 @@ func (q *Queries) GetBots(ctx context.Context) ([]Bot, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const getOrCreateBot = `-- name: GetOrCreateBot :one
+INSERT INTO bots (bot_token, created_at, last_activity_at, workspace_id)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (bot_token)
+DO UPDATE SET 
+    created_at = EXCLUDED.created_at, 
+    last_activity_at = EXCLUDED.last_activity_at, 
+    workspace_id = EXCLUDED.workspace_id
+WHERE 
+    bots.created_at != EXCLUDED.created_at OR 
+    bots.last_activity_at != EXCLUDED.last_activity_at OR 
+    bots.workspace_id != EXCLUDED.workspace_id
+RETURNING id, created_at, last_activity_at, bot_token, workspace_id
+`
+
+type GetOrCreateBotParams struct {
+	BotToken       string
+	CreatedAt      time.Time
+	LastActivityAt time.Time
+	WorkspaceID    string
+}
+
+func (q *Queries) GetOrCreateBot(ctx context.Context, arg GetOrCreateBotParams) (Bot, error) {
+	row := q.db.QueryRowContext(ctx, getOrCreateBot,
+		arg.BotToken,
+		arg.CreatedAt,
+		arg.LastActivityAt,
+		arg.WorkspaceID,
+	)
+	var i Bot
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.LastActivityAt,
+		&i.BotToken,
+		&i.WorkspaceID,
+	)
+	return i, err
 }

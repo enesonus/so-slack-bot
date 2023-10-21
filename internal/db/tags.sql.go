@@ -11,6 +11,29 @@ import (
 	"github.com/lib/pq"
 )
 
+const activateTag = `-- name: ActivateTag :one
+UPDATE tags
+SET status = 'active'
+WHERE name = $1
+RETURNING id, has_synonyms, synonyms, is_moderator_only, is_required, count, name, status
+`
+
+func (q *Queries) ActivateTag(ctx context.Context, name string) (Tag, error) {
+	row := q.db.QueryRowContext(ctx, activateTag, name)
+	var i Tag
+	err := row.Scan(
+		&i.ID,
+		&i.HasSynonyms,
+		pq.Array(&i.Synonyms),
+		&i.IsModeratorOnly,
+		&i.IsRequired,
+		&i.Count,
+		&i.Name,
+		&i.Status,
+	)
+	return i, err
+}
+
 const createTag = `-- name: CreateTag :one
 INSERT INTO tags (name, has_synonyms, synonyms, is_moderator_only, is_required, count, status)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -49,4 +72,40 @@ func (q *Queries) CreateTag(ctx context.Context, arg CreateTagParams) (Tag, erro
 		&i.Status,
 	)
 	return i, err
+}
+
+const getActiveTags = `-- name: GetActiveTags :many
+SELECT id, has_synonyms, synonyms, is_moderator_only, is_required, count, name, status FROM tags WHERE status = 'active'
+`
+
+func (q *Queries) GetActiveTags(ctx context.Context) ([]Tag, error) {
+	rows, err := q.db.QueryContext(ctx, getActiveTags)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Tag
+	for rows.Next() {
+		var i Tag
+		if err := rows.Scan(
+			&i.ID,
+			&i.HasSynonyms,
+			pq.Array(&i.Synonyms),
+			&i.IsModeratorOnly,
+			&i.IsRequired,
+			&i.Count,
+			&i.Name,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

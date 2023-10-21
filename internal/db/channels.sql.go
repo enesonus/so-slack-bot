@@ -11,9 +11,9 @@ import (
 )
 
 const createChannel = `-- name: CreateChannel :one
-INSERT INTO channels (id, channel_name, created_at, workspace_id)
-VALUES ($1, $2, $3, $4)
-RETURNING id, channel_name, created_at, workspace_id
+INSERT INTO channels (id, channel_name, created_at, workspace_id, bot_token)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, channel_name, created_at, workspace_id, bot_token
 `
 
 type CreateChannelParams struct {
@@ -21,6 +21,7 @@ type CreateChannelParams struct {
 	ChannelName string
 	CreatedAt   time.Time
 	WorkspaceID string
+	BotToken    string
 }
 
 func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (Channel, error) {
@@ -29,6 +30,7 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 		arg.ChannelName,
 		arg.CreatedAt,
 		arg.WorkspaceID,
+		arg.BotToken,
 	)
 	var i Channel
 	err := row.Scan(
@@ -36,13 +38,14 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (C
 		&i.ChannelName,
 		&i.CreatedAt,
 		&i.WorkspaceID,
+		&i.BotToken,
 	)
 	return i, err
 }
 
 const deleteChannel = `-- name: DeleteChannel :one
 DELETE FROM channels WHERE id = $1
-RETURNING id, channel_name, created_at, workspace_id
+RETURNING id, channel_name, created_at, workspace_id, bot_token
 `
 
 func (q *Queries) DeleteChannel(ctx context.Context, id string) (Channel, error) {
@@ -53,6 +56,57 @@ func (q *Queries) DeleteChannel(ctx context.Context, id string) (Channel, error)
 		&i.ChannelName,
 		&i.CreatedAt,
 		&i.WorkspaceID,
+		&i.BotToken,
+	)
+	return i, err
+}
+
+const getChannelByBotToken = `-- name: GetChannelByBotToken :many
+SELECT id, channel_name, created_at, workspace_id, bot_token FROM channels WHERE bot_token = $1
+`
+
+func (q *Queries) GetChannelByBotToken(ctx context.Context, botToken string) ([]Channel, error) {
+	rows, err := q.db.QueryContext(ctx, getChannelByBotToken, botToken)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Channel
+	for rows.Next() {
+		var i Channel
+		if err := rows.Scan(
+			&i.ID,
+			&i.ChannelName,
+			&i.CreatedAt,
+			&i.WorkspaceID,
+			&i.BotToken,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getChannelByID = `-- name: GetChannelByID :one
+SELECT id, channel_name, created_at, workspace_id, bot_token FROM channels WHERE id = $1
+`
+
+func (q *Queries) GetChannelByID(ctx context.Context, id string) (Channel, error) {
+	row := q.db.QueryRowContext(ctx, getChannelByID, id)
+	var i Channel
+	err := row.Scan(
+		&i.ID,
+		&i.ChannelName,
+		&i.CreatedAt,
+		&i.WorkspaceID,
+		&i.BotToken,
 	)
 	return i, err
 }

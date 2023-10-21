@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE tag_subscriptions (
     tag TEXT NOT NULL REFERENCES tags(name),
-    channel_id TEXT NOT NULL REFERENCES channels(id),
+    channel_id TEXT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
     PRIMARY KEY (tag, channel_id)
 );
 

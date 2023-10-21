@@ -41,7 +41,7 @@ func GetAccessTokenAndStartBot(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if resJson.OK {
-		err = bot.StartSlackBot(resJson.AccessToken)
+		_, err = bot.CreateSlackBot(resJson.AccessToken)
 		if err != nil {
 			fmt.Printf("client: could not start slack bot: %s\n", err)
 			respondWithJSON(w, 400, map[string]string{"ready": "not ok", "bot_state": "not running", "error": err.Error()})
