@@ -119,11 +119,14 @@ var addTagDef = &slacker.CommandDefinition{
 				fmt.Printf("Error binding tag: %v\n", err)
 				return
 			}
+			_, err = databaseObject.ActivateTag(context.Background(), tag)
+			if err != nil {
+				fmt.Printf("Error activating tag: %v\n", err)
+				return
+			}
 			fmt.Printf("Tag *%s* added to %s\n", tag, event.Channel.Name)
 			apiClient.PostMessage(event.ChannelID, slack.MsgOptionText(
 				"New Stack Overflow questions about *"+tag+"* will be sent to channel *"+event.Channel.Name+"*", false))
-
-			// go BotStackOverflow(botCtx, event.ChannelID, tag)
 
 			fmt.Printf("A new instance of Stack Overflow channel ID is set to %s\n", event.ChannelID)
 		}
