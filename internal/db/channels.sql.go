@@ -93,3 +93,20 @@ func (q *Queries) GetChannelByBotToken(ctx context.Context, botToken string) ([]
 	}
 	return items, nil
 }
+
+const getChannelByID = `-- name: GetChannelByID :one
+SELECT id, channel_name, created_at, workspace_id, bot_token FROM channels WHERE id = $1
+`
+
+func (q *Queries) GetChannelByID(ctx context.Context, id string) (Channel, error) {
+	row := q.db.QueryRowContext(ctx, getChannelByID, id)
+	var i Channel
+	err := row.Scan(
+		&i.ID,
+		&i.ChannelName,
+		&i.CreatedAt,
+		&i.WorkspaceID,
+		&i.BotToken,
+	)
+	return i, err
+}

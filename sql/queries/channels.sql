@@ -9,3 +9,6 @@ RETURNING *;
 
 -- name: GetChannelByBotToken :many
 SELECT * FROM channels WHERE bot_token = $1;
+
+-- name: GetChannelByID :one
+SELECT * FROM channels WHERE id = $1;
