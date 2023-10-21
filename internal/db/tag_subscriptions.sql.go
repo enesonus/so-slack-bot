@@ -70,15 +70,31 @@ func (q *Queries) GetSubscriberChannels(ctx context.Context, tag string) ([]Chan
 	return items, nil
 }
 
-const getTagSubscriptions = `-- name: GetTagSubscriptions :one
+const getTagSubscriptions = `-- name: GetTagSubscriptions :many
 SELECT tag, channel_id FROM tag_subscriptions
 `
 
-func (q *Queries) GetTagSubscriptions(ctx context.Context) (TagSubscription, error) {
-	row := q.db.QueryRowContext(ctx, getTagSubscriptions)
-	var i TagSubscription
-	err := row.Scan(&i.Tag, &i.ChannelID)
-	return i, err
+func (q *Queries) GetTagSubscriptions(ctx context.Context) ([]TagSubscription, error) {
+	rows, err := q.db.QueryContext(ctx, getTagSubscriptions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TagSubscription
+	for rows.Next() {
+		var i TagSubscription
+		if err := rows.Scan(&i.Tag, &i.ChannelID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getTagSubscriptionsWithChannelId = `-- name: GetTagSubscriptionsWithChannelId :many

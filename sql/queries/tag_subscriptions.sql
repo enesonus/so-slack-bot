@@ -8,7 +8,7 @@ DELETE FROM tag_subscriptions
 WHERE tag = $1 AND channel_id = $2
 RETURNING *;
 
--- name: GetTagSubscriptions :one
+-- name: GetTagSubscriptions :many
 SELECT * FROM tag_subscriptions;
 
 -- name: GetTagSubscriptionsWithName :many
