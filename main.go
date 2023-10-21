@@ -78,6 +78,7 @@ func main() {
 	router.Get("/access_token/", server.GetAccessTokenAndStartBot)
 
 	startAllBots()
+	go bot.QuestionCheckerAndSender()
 	srv.ListenAndServe()
 
 }

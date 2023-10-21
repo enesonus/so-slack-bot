@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -11,56 +12,69 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/enesonus/so-slack-bot/internal/db"
 	"github.com/shomali11/slacker"
 	"github.com/slack-go/slack"
 )
 
-func BotStackOverflow(botCtx slacker.BotContext, channelID string, tag string) {
-	lastQuestionDate := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
-	checkInterval, err := strconv.Atoi(os.Getenv("NEW_QUESTION_CHECK_INTERVAL_SECONDS"))
-
+func QuestionCheckerAndSender() {
+	timePeriod, err := strconv.Atoi(os.Getenv("QUESTION_QUERY_TIME_PERIOD_MINUTES"))
 	if err != nil {
-		checkInterval = 60
-		log.Printf("Couldn't get NEW_QUESTION_CHECK_INTERVAL_SECONDS from .env: %v\nDefaulting: %v\n", err.Error(), checkInterval)
+		timePeriod = 60
+		log.Printf("Couldn't get QUESTION_QUERY_TIME_PERIOD_MINUTES from .env: %v\nDefaulting: %v\n", err.Error(), timePeriod)
 	}
-	ticker := time.NewTicker(time.Duration(checkInterval) * time.Second)
+
+	// lastQuestionCheckDate := time.Now().Add(time.Duration(-timePeriod*3) * time.Minute)
+	lastQuestionCheckDate := time.Now()
+
+	ticker := time.NewTicker(time.Duration(timePeriod) * time.Minute)
+	// ticker := time.NewTicker(time.Duration(30) * time.Second)
 
 	for range ticker.C {
 		var questions []StackOverflowQuestion
-		var questionsToPost []StackOverflowQuestion
 
-		if channelID != "" {
-			timePeriod, err := strconv.Atoi(os.Getenv("QUESTION_QUERY_TIME_PERIOD_MINUTES"))
-			if err != nil {
-				timePeriod = 60
-				log.Printf("Couldn't get QUESTION_QUERY_TIME_PERIOD_MINUTES from .env: %v\nDefaulting: %v\n", err.Error(), timePeriod)
-			}
-
-			fromDate := time.Now().Add(time.Duration(-timePeriod) * time.Minute)
-			questions = getSOQuestionsAfterTime(tag, fromDate)
-			for _, question := range questions {
-				if question.Creation_date > lastQuestionDate.Unix() {
-					questionsToPost = append(questionsToPost, question)
-				}
-			}
-
-			for _, question := range questionsToPost {
-
-				questionTemplate :=
-					">*New question about %v from %v*!\nLink: %v \nOwner: %v"
-				decodedName := html.UnescapeString(question.Owner.Display_name)
-				questionText := fmt.Sprintf(questionTemplate, tag, decodedName, question.Link, question.Owner.Link)
-
-				botCtx.APIClient().PostMessage(channelID, slack.MsgOptionText(questionText, false))
-				if question.Creation_date > lastQuestionDate.Unix() {
-					lastQuestionDate = time.Unix(question.Creation_date, 0)
-				}
-			}
-			continue
+		dbObj, err := db.GetDatabase()
+		if err != nil {
+			log.Println("Error getting database: ", err)
+		}
+		activeTags, err := dbObj.GetActiveTags(context.Background())
+		if err != nil {
+			log.Println("Error getting active tags: ", err)
 		}
 
-		log.Println("No SO channel set")
+		for _, tag := range activeTags {
+			questions = getSOQuestionsAfterTime(tag.Name, lastQuestionCheckDate)
+			time.Sleep(2 * time.Second)
+			if len(questions) == 0 {
+				continue
+			}
 
+			tagSubs, err := dbObj.GetTagSubscriptionsWithName(context.Background(), tag.Name)
+			if err != nil {
+				log.Println("Error getting tag subscriptions: ", err)
+			}
+			for _, tagSub := range tagSubs {
+				channel, err := dbObj.GetChannelByID(context.Background(), tagSub.ChannelID)
+				if err != nil {
+					log.Println("Error getting channel: ", err)
+				}
+
+				for _, question := range questions {
+
+					slackBot := slacker.NewClient(channel.BotToken, os.Getenv("SLACK_APP_TOKEN"))
+					questionTemplate :=
+						">*New question about %v from %v*!\nLink: %v \nOwner: %v\n"
+					decodedName := html.UnescapeString(question.Owner.Display_name)
+					questionText := fmt.Sprintf(questionTemplate, tag.Name, decodedName, question.Link, question.Owner.Link)
+
+					slackBot.APIClient().PostMessage(tagSub.ChannelID, slack.MsgOptionText(questionText, false))
+				}
+
+			}
+		}
+
+		lastQuestionCheckDate = time.Now()
+		fmt.Printf("Last question check date: %v\n", lastQuestionCheckDate)
 	}
 
 }
