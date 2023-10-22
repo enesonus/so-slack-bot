@@ -11,6 +11,15 @@ import (
 	"github.com/shomali11/slacker"
 )
 
+func PrintCommandEvents(slackChannel <-chan *slacker.CommandEvent) {
+	for event := range slackChannel {
+		log.Printf("Command Event Received")
+		log.Printf("Command: %v", event.Command)
+		log.Printf("Parameters: %v", event.Parameters)
+		log.Printf("Event: %v\n\n", event.Event)
+	}
+}
+
 func CreateSlackBot(slackBotToken string) (*slacker.Slacker, error) {
 
 	slackBot := slacker.NewClient(slackBotToken, os.Getenv("SLACK_APP_TOKEN"))
@@ -60,10 +69,9 @@ func CreateSlackBot(slackBotToken string) (*slacker.Slacker, error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		err = slackBot.Listen(ctx)
-		defer cancel()
-	}()
+	defer cancel()
+
+	err = slackBot.Listen(ctx)
 
 	if err != nil {
 		log.Printf("Error listening to Slack Bot: %v, Token: %v\n", err, slackBotToken)
@@ -74,7 +82,7 @@ func CreateSlackBot(slackBotToken string) (*slacker.Slacker, error) {
 }
 
 func StartSlackBot(slackBotToken string) (*slacker.Slacker, error) {
-
+	fmt.Printf("Starting slack bot with token: %v\n", slackBotToken)
 	slackBot := slacker.NewClient(slackBotToken, os.Getenv("SLACK_APP_TOKEN"))
 	slackBot.Command("set_so_channel", setSOChannelDef)
 	slackBot.Command("remove_so_channel", removeSOChannelDef)
@@ -86,11 +94,9 @@ func StartSlackBot(slackBotToken string) (*slacker.Slacker, error) {
 
 	err := error(nil)
 	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		err = slackBot.Listen(ctx)
-		defer cancel()
-	}()
+	defer cancel()
 
+	err = slackBot.Listen(ctx)
 	if err != nil {
 		log.Printf("Error listening to Slack Bot: %v, Token: %v\n", err, slackBotToken)
 		return nil, fmt.Errorf("error listening to slack bot: %v, token: %v", err, slackBotToken)

@@ -152,12 +152,43 @@ var getUserInfoDef = &slacker.CommandDefinition{
 			response.ReportError(err)
 			return
 		}
-		teamA, _ := json.MarshalIndent(team, "", "  ")
-		userA, _ := json.MarshalIndent(user, "", "  ")
-		botA, _ := json.MarshalIndent(bot, "", "  ")
-		channelA, _ := json.MarshalIndent(botCtx.Event().Channel, "", "  ")
-		dataA, _ := json.MarshalIndent(botCtx.Event().Data, "", "  ")
-		profileA, _ := json.MarshalIndent(botCtx.Event().UserProfile, "", "  ")
+		teamA, err := json.MarshalIndent(team, "", "  ")
+		if err != nil {
+			fmt.Printf("Error marshalling: %v\n", err)
+			response.ReportError(err)
+			return
+		}
+		userA, err := json.MarshalIndent(user, "", "  ")
+		if err != nil {
+			fmt.Printf("Error marshalling: %v\n", err)
+			response.ReportError(err)
+			return
+		}
+		botA, err := json.MarshalIndent(bot, "", "  ")
+		if err != nil {
+			fmt.Printf("Error marshalling: %v\n", err)
+			response.ReportError(err)
+			return
+		}
+
+		channelA, err := json.MarshalIndent(botCtx.Event().Channel, "", "  ")
+		if err != nil {
+			fmt.Printf("Error marshalling: %v\n", err)
+			response.ReportError(err)
+			return
+		}
+		dataA, err := json.MarshalIndent(botCtx.Event().Data, "", "  ")
+		if err != nil {
+			fmt.Printf("Error marshalling: %v\n", err)
+			response.ReportError(err)
+			return
+		}
+		profileA, err := json.MarshalIndent(botCtx.Event().UserProfile, "", "  ")
+		if err != nil {
+			fmt.Printf("Error marshalling: %v\n", err)
+			response.ReportError(err)
+			return
+		}
 
 		response.Reply(fmt.Sprintf("*Team/Workspace*: %s", teamA))
 		response.Reply(fmt.Sprintf("*User*: %s", userA))
@@ -173,10 +204,30 @@ var getUserInfoDef = &slacker.CommandDefinition{
 }
 
 var showTagsDef = &slacker.CommandDefinition{
-	Description: "Get tag info",
+	Description: "Show tags of a channel",
 	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-		channelID := botCtx.Event().ChannelID
-		channelName := botCtx.Event().Channel.Name
+		event := botCtx.Event()
+		APIClient := botCtx.APIClient()
+		if event == nil {
+			fmt.Printf("Event is nil\n")
+			response.ReportError(fmt.Errorf("an error occured please try again"))
+			return
+		}
+		channelID := event.ChannelID
+
+		channel, err := APIClient.GetConversationInfo(&slack.GetConversationInfoInput{
+			ChannelID:         channelID,
+			IncludeLocale:     false,
+			IncludeNumMembers: false})
+
+		if err != nil {
+			fmt.Printf("Error getting channel: %v\n", err)
+			response.ReportError(fmt.Errorf("an error occured please try again"))
+			return
+		}
+
+		channelName := channel.Name
+
 		databaseObject, err := db.GetDatabase()
 
 		if err != nil {
@@ -194,8 +245,10 @@ var showTagsDef = &slacker.CommandDefinition{
 			response.Reply(fmt.Sprintf("No tags bound to channel: %v", channelName))
 			return
 		}
+		tagListStr := ""
 		for _, tag := range tags {
-			response.Reply(fmt.Sprintf("*Tag bound to %v channel*: %v", channelName, tag.Name))
+			tagListStr += fmt.Sprintf("%v, ", tag.Name)
 		}
+		response.Reply(fmt.Sprintf("*Tags bound to channel %v*: %v", channelName, tagListStr))
 	},
 }
