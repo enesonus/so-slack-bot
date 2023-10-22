@@ -33,7 +33,7 @@ func startAllBots() {
 	}
 
 	for _, newbot := range bots {
-		_, err = bot.StartSlackBot(newbot.BotToken)
+		go func(token string) { _, err = bot.StartSlackBot(token) }(newbot.BotToken)
 		botCount++
 		if err != nil {
 			fmt.Printf("Error starting bot: %v\n", err)

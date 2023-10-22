@@ -79,15 +79,6 @@ func QuestionCheckerAndSender() {
 
 }
 
-func PrintCommandEvents(slackChannel <-chan *slacker.CommandEvent) {
-	for event := range slackChannel {
-		log.Printf("Command Event Received")
-		log.Printf("Command: %v", event.Command)
-		log.Printf("Parameters: %v", event.Parameters)
-		log.Printf("Event: %v\n\n", event.Event)
-	}
-}
-
 func getSOQuestionsAfterTime(tag string, fromDate time.Time) []StackOverflowQuestion {
 	baseAPIURL := "https://api.stackexchange.com/2.3/questions?key=U4DMV*8nvpm3EOpvf69Rxw(("
 
