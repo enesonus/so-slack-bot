@@ -76,9 +76,10 @@ func main() {
 	router.Get("/", server.CheckReadiness)
 	router.Get("/healthz", server.CheckReadiness)
 	router.Get("/access_token/", server.GetAccessTokenAndStartBot)
+	router.Post("/events-api-handler", server.EventsAPIHandler)
 
-	startAllBots()
-	go bot.QuestionCheckerAndSender()
+	// startAllBots()
+	// go bot.QuestionCheckerAndSender()
 	srv.ListenAndServe()
 
 }
