@@ -25,3 +25,6 @@ go.work
 
 # Fly.io files
 fly.toml
+
+# Dockerfile
+Dockerfile
