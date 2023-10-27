@@ -203,52 +203,51 @@ var getUserInfoDef = &slacker.CommandDefinition{
 	},
 }
 
-var showTagsDef = &slacker.CommandDefinition{
-	Description: "Show tags of a channel",
-	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-		event := botCtx.Event()
-		APIClient := botCtx.APIClient()
-		if event == nil {
-			fmt.Printf("Event is nil\n")
-			response.ReportError(fmt.Errorf("an error occured please try again"))
-			return
-		}
-		channelID := event.ChannelID
+func ShowTagsDef(msgCtx *SlackMessageContext, suffix string) {
+	start := time.Now()
+	channelID := msgCtx.channelID
+	api := msgCtx.api
 
-		channel, err := APIClient.GetConversationInfo(&slack.GetConversationInfoInput{
-			ChannelID:         channelID,
-			IncludeLocale:     false,
-			IncludeNumMembers: false})
+	channel, err := api.GetConversationInfo(&slack.GetConversationInfoInput{
+		ChannelID:         channelID,
+		IncludeLocale:     false,
+		IncludeNumMembers: false})
 
-		if err != nil {
-			fmt.Printf("Error getting channel: %v\n", err)
-			response.ReportError(fmt.Errorf("an error occured please try again"))
-			return
-		}
+	if err != nil {
+		fmt.Printf("Error getting channel: %v\n", err)
+		api.PostMessage(channelID, slack.MsgOptionText(
+			fmt.Sprintf("an error occured please try again: %v", err), false))
+		return
+	}
 
-		channelName := channel.Name
+	channelName := channel.Name
 
-		databaseObject, err := db.GetDatabase()
+	databaseObject, err := db.GetDatabase()
 
-		if err != nil {
-			fmt.Printf("Error connecting database: %v\n", err)
-			response.Reply(fmt.Sprintf("Error connecting database: %v\n", err))
-			return
-		}
-		tags, err := databaseObject.GetTagsOfChannel(context.Background(), channelID)
-		if err != nil {
-			fmt.Printf("Error getting channels: %v\n", err)
-			response.Reply(fmt.Sprintf("Error getting channels: %v\n", err))
-			return
-		}
-		if len(tags) == 0 {
-			response.Reply(fmt.Sprintf("No tags bound to channel: %v", channelName))
-			return
-		}
-		tagListStr := ""
-		for _, tag := range tags {
-			tagListStr += fmt.Sprintf("%v, ", tag.Name)
-		}
-		response.Reply(fmt.Sprintf("*Tags bound to channel %v*: %v", channelName, tagListStr))
-	},
+	if err != nil {
+		fmt.Printf("Error connecting database: %v\n", err)
+		api.PostMessage(channelID, slack.MsgOptionText(
+			fmt.Sprintf("Error connecting database: %v\n", err), false))
+		return
+	}
+	tags, err := databaseObject.GetTagsOfChannel(context.Background(), channelID)
+	if err != nil {
+		fmt.Printf("Error getting channels: %v\n", err)
+		api.PostMessage(channelID, slack.MsgOptionText(
+			fmt.Sprintf("Error getting channels: %v\n", err), false))
+		return
+	}
+	if len(tags) == 0 {
+		api.PostMessage(channelID, slack.MsgOptionText(
+			fmt.Sprintf("No tags bound to channel: %v", channelName), false))
+		fmt.Printf("ShowTagsDef took %v\n", time.Since(start))
+		return
+	}
+	tagListStr := ""
+	for _, tag := range tags {
+		tagListStr += fmt.Sprintf("%v, ", tag.Name)
+	}
+	api.PostMessage(channelID, slack.MsgOptionText(
+		fmt.Sprintf("*Tags bound to channel %v*: %v", channelName, tagListStr), false))
+	fmt.Printf("ShowTagsDef took %v\n", time.Since(start))
 }
