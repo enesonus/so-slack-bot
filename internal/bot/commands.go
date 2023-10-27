@@ -29,7 +29,7 @@ func CreateSlackBot(slackBotToken string) (*slacker.Slacker, error) {
 	slackBot := slacker.NewClient(slackBotToken, os.Getenv("SLACK_APP_TOKEN"))
 	slackBot.Command("set_so_channel", setSOChannelDef)
 	slackBot.Command("remove_so_channel", removeSOChannelDef)
-	slackBot.Command("getinfo", getUserInfoDef)
+	// slackBot.Command("getinfo", getUserInfoDef)
 	slackBot.Command("add_tag {tag}", addTagDef)
 	// slackBot.Command("show_tags", showTagsDef)
 
@@ -90,7 +90,7 @@ func StartSlackBot(slackBotToken string) (*slacker.Slacker, error) {
 	slackBot := slacker.NewClient(slackBotToken, os.Getenv("SLACK_APP_TOKEN"))
 	slackBot.Command("set_so_channel", setSOChannelDef)
 	slackBot.Command("remove_so_channel", removeSOChannelDef)
-	slackBot.Command("getinfo", getUserInfoDef)
+	// slackBot.Command("getinfo", getUserInfoDef)
 	slackBot.Command("add_tag {tag}", addTagDef)
 	// slackBot.Command("show_tags", showTagsDef)
 
@@ -109,7 +109,7 @@ func StartSlackBot(slackBotToken string) (*slacker.Slacker, error) {
 	return slackBot, nil
 }
 
-func SlackMessageHandler(w http.ResponseWriter, eventsAPIEvent slackevents.EventsAPIEvent) (*SlackMessageContext, error) {
+func SlackMessageHandler(w http.ResponseWriter, eventsAPIEvent *slackevents.EventsAPIEvent) (*SlackMessageContext, error) {
 	start := time.Now()
 	innerEvent := eventsAPIEvent.InnerEvent
 	ev := innerEvent.Data.(*slackevents.MessageEvent)
@@ -155,14 +155,14 @@ func (messageCtx *SlackMessageContext) ChannelName() (string, error) {
 type CommandFunc func(msgCtx *SlackMessageContext, suffix string)
 type SlackMessageContext struct {
 	api            *slack.Client
-	eventsAPIEvent slackevents.EventsAPIEvent
+	eventsAPIEvent *slackevents.EventsAPIEvent
 	innerEvent     *slackevents.MessageEvent
 	message        string
 	prefix         string
 	channelID      string
 }
 
-func NewClient(eventsAPIEvent slackevents.EventsAPIEvent) (*SlackMessageContext, error) {
+func NewClient(eventsAPIEvent *slackevents.EventsAPIEvent) (*SlackMessageContext, error) {
 
 	innerEvent := eventsAPIEvent.InnerEvent
 	if innerEvent.Type != "message" {

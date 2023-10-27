@@ -47,12 +47,12 @@ func EventsAPIHandler(w http.ResponseWriter, r *http.Request) {
 		innerEvent := eventsAPIEvent.InnerEvent
 		switch innerEvent.Data.(type) {
 		case *slackevents.MessageEvent:
-			msgCtx, err := bot.SlackMessageHandler(w, eventsAPIEvent)
+			msgCtx, err := bot.SlackMessageHandler(w, &eventsAPIEvent)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			go msgCtx.Listen("show_tags", bot.ShowTagsDef)
+			go msgCtx.Listen("show_tags", bot.ShowTags)
 			w.WriteHeader(http.StatusOK)
 		}
 	}
