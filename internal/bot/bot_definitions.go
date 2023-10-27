@@ -133,77 +133,69 @@ var addTagDef = &slacker.CommandDefinition{
 	},
 }
 
-var getUserInfoDef = &slacker.CommandDefinition{
-	Description: "Get user info",
-	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-		userID := botCtx.Event().UserID
-		user, err := botCtx.APIClient().GetUserInfo(userID)
-		if err != nil {
-			response.ReportError(err)
-		}
-		botID := botCtx.Event().BotID
-		bot, err := botCtx.APIClient().GetBotInfo(botID)
-		if err != nil {
-			response.ReportError(err)
-		}
-		team, err := botCtx.APIClient().GetTeamInfo()
+func GetUserInfo(msgCtx *SlackMessageContext, suffix string) {
+	event := msgCtx.innerEvent
+	apiClient := msgCtx.api
 
-		if err != nil {
-			response.ReportError(err)
-			return
-		}
-		teamA, err := json.MarshalIndent(team, "", "  ")
-		if err != nil {
-			fmt.Printf("Error marshalling: %v\n", err)
-			response.ReportError(err)
-			return
-		}
-		userA, err := json.MarshalIndent(user, "", "  ")
-		if err != nil {
-			fmt.Printf("Error marshalling: %v\n", err)
-			response.ReportError(err)
-			return
-		}
-		botA, err := json.MarshalIndent(bot, "", "  ")
-		if err != nil {
-			fmt.Printf("Error marshalling: %v\n", err)
-			response.ReportError(err)
-			return
-		}
+	userID := event.User
+	user, err := apiClient.GetUserInfo(userID)
+	if err != nil {
+		msgCtx.ReportError(err)
+	}
+	botID := event.BotID
+	bot, err := apiClient.GetBotInfo(botID)
+	if err != nil {
+		msgCtx.ReportError(err)
+	}
+	team, err := apiClient.GetTeamInfo()
 
-		channelA, err := json.MarshalIndent(botCtx.Event().Channel, "", "  ")
-		if err != nil {
-			fmt.Printf("Error marshalling: %v\n", err)
-			response.ReportError(err)
-			return
-		}
-		dataA, err := json.MarshalIndent(botCtx.Event().Data, "", "  ")
-		if err != nil {
-			fmt.Printf("Error marshalling: %v\n", err)
-			response.ReportError(err)
-			return
-		}
-		profileA, err := json.MarshalIndent(botCtx.Event().UserProfile, "", "  ")
-		if err != nil {
-			fmt.Printf("Error marshalling: %v\n", err)
-			response.ReportError(err)
-			return
-		}
+	if err != nil {
+		msgCtx.ReportError(err)
+		return
+	}
+	teamA, err := json.MarshalIndent(team, "", "  ")
+	if err != nil {
+		fmt.Printf("Error marshalling: %v\n", err)
+		msgCtx.ReportError(err)
+		return
+	}
+	userA, err := json.MarshalIndent(user, "", "  ")
+	if err != nil {
+		fmt.Printf("Error marshalling: %v\n", err)
+		msgCtx.ReportError(err)
+		return
+	}
+	botA, err := json.MarshalIndent(bot, "", "  ")
+	if err != nil {
+		fmt.Printf("Error marshalling: %v\n", err)
+		msgCtx.ReportError(err)
+		return
+	}
 
-		response.Reply(fmt.Sprintf("*Team/Workspace*: %s", teamA))
-		response.Reply(fmt.Sprintf("*User*: %s", userA))
-		response.Reply(fmt.Sprintf("*Bot*: %s", botA))
-		response.Reply(fmt.Sprintf("*Channel*: %s", channelA))
-		response.Reply(fmt.Sprintf("*Data*: %s", dataA))
-		response.Reply(fmt.Sprintf("*ChannelID*: %s", botCtx.Event().ChannelID))
+	channelA, err := json.MarshalIndent(event.Channel, "", "  ")
+	if err != nil {
+		fmt.Printf("Error marshalling: %v\n", err)
+		msgCtx.ReportError(err)
+		return
+	}
+	dataA, err := json.MarshalIndent(event, "", "  ")
+	if err != nil {
+		fmt.Printf("Error marshalling: %v\n", err)
+		msgCtx.ReportError(err)
+		return
+	}
 
-		response.Reply(fmt.Sprintf("*Type*: %s", botCtx.Event().Type))
-		response.Reply(fmt.Sprintf("*UserProfile*: %s", profileA))
+	msgCtx.Reply(fmt.Sprintf("*Team/Workspace*: %s", teamA))
+	msgCtx.Reply(fmt.Sprintf("*User*: %s", userA))
+	msgCtx.Reply(fmt.Sprintf("*Bot*: %s", botA))
+	msgCtx.Reply(fmt.Sprintf("*Channel*: %s", channelA))
+	msgCtx.Reply(fmt.Sprintf("*Data*: %s", dataA))
+	msgCtx.Reply(fmt.Sprintf("*ChannelID*: %s", msgCtx.channelID))
+	msgCtx.Reply(fmt.Sprintf("*Type*: %s", event.Type))
 
-	},
 }
 
-func ShowTagsDef(msgCtx *SlackMessageContext, suffix string) {
+func ShowTags(msgCtx *SlackMessageContext, suffix string) {
 	start := time.Now()
 	channelID := msgCtx.channelID
 	api := msgCtx.api
