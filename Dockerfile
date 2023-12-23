@@ -25,7 +25,6 @@ WORKDIR /root/
 
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builder /app/so-slack-bot .
-COPY --from=builder /app/.env .
 
 # Expose port 8080 if your application listens on that port
 EXPOSE 8080
