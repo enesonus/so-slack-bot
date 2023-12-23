@@ -21,6 +21,8 @@ func GetDatabase() (*Queries, error) {
 	}
 
 	conn, err := sql.Open("postgres", dbURL)
+	conn.SetConnMaxLifetime(time.Second * 15)
+	conn.SetConnMaxIdleTime(time.Second * 15)
 	if err != nil {
 		log.Print("Can't connect to DB: ", err)
 	}

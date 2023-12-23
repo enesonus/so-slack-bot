@@ -4,30 +4,34 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/enesonus/so-slack-bot/internal/db"
-	"github.com/shomali11/slacker"
+	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/slackevents"
 )
 
-func CreateSlackBot(slackBotToken string) (*slacker.Slacker, error) {
+// func PrintCommandEvents(slackChannel <-chan *slacker.CommandEvent) {
+// 	for event := range slackChannel {
+// 		log.Printf("Command Event Received")
+// 		log.Printf("Command: %v", event.Command)
+// 		log.Printf("Parameters: %v", event.Parameters)
+// 		log.Printf("Event: %v\n\n", event.Event)
+// 	}
+// }
 
-	slackBot := slacker.NewClient(slackBotToken, os.Getenv("SLACK_APP_TOKEN"))
-	slackBot.Command("set_so_channel", setSOChannelDef)
-	slackBot.Command("remove_so_channel", removeSOChannelDef)
-	slackBot.Command("getinfo", getUserInfoDef)
-	slackBot.Command("add_tag {tag}", addTagDef)
-	slackBot.Command("show_tags", showTagsDef)
-
-	go PrintCommandEvents(slackBot.CommandEvents())
+func CreateSlackBot(slackBotToken string) (*slack.Client, error) {
 
 	// Add bot and Workspace to DB
 
-	teamInfo, err := slackBot.APIClient().GetTeamInfo()
+	apiClient := slack.New(slackBotToken)
+
+	teamInfo, err := apiClient.GetTeamInfo()
 	if err != nil {
 		log.Printf("Error getting team info: %v\n", err)
-		return nil, fmt.Errorf("error getting team info: %v", err)
+		return &slack.Client{}, fmt.Errorf("error getting team info: %v", err)
 	}
 
 	workspaceParams := db.GetOrCreateWorkspaceParams{
@@ -37,12 +41,11 @@ func CreateSlackBot(slackBotToken string) (*slacker.Slacker, error) {
 		CreatedAt:       time.Now(),
 	}
 
-	databaseObject, err := db.GetDatabase()
 	if err != nil {
 		fmt.Printf("Error connecting database: %v\n", err)
 	}
 
-	_, err = databaseObject.GetOrCreateWorkspace(context.Background(), workspaceParams)
+	_, err = dbObj.GetOrCreateWorkspace(context.Background(), workspaceParams)
 	if err != nil {
 		log.Printf("Error adding workspace to DB: %v\n", err)
 		return nil, fmt.Errorf("error adding workspace to DB: %v", err)
@@ -53,48 +56,118 @@ func CreateSlackBot(slackBotToken string) (*slacker.Slacker, error) {
 		LastActivityAt: time.Now(),
 		WorkspaceID:    teamInfo.ID,
 	}
-	_, err = databaseObject.CreateBot(context.Background(), botParams)
+	_, err = dbObj.CreateBot(context.Background(), botParams)
 	if err != nil {
 		log.Printf("Error adding bot to DB: %v\n", err)
-		return slackBot, fmt.Errorf("error adding bot to DB: %v", err)
+		return apiClient, fmt.Errorf("error adding bot to DB: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		err = slackBot.Listen(ctx)
-		defer cancel()
-	}()
-
-	if err != nil {
-		log.Printf("Error listening to Slack Bot: %v, Token: %v\n", err, slackBotToken)
-		return nil, fmt.Errorf("error listening to slack bot: %v, token: %v", err, slackBotToken)
-	}
-
-	return slackBot, nil
+	return apiClient, nil
 }
 
-func StartSlackBot(slackBotToken string) (*slacker.Slacker, error) {
+var dbObj, err = db.GetDatabase()
 
-	slackBot := slacker.NewClient(slackBotToken, os.Getenv("SLACK_APP_TOKEN"))
-	slackBot.Command("set_so_channel", setSOChannelDef)
-	slackBot.Command("remove_so_channel", removeSOChannelDef)
-	slackBot.Command("getinfo", getUserInfoDef)
-	slackBot.Command("add_tag {tag}", addTagDef)
-	slackBot.Command("show_tags", showTagsDef)
+// ticker := time.NewTicker(time.Duration(timePeriod) * time.Minute)
 
-	go PrintCommandEvents(slackBot.CommandEvents())
+func NewMessageContext(w http.ResponseWriter, eventsAPIEvent *slackevents.EventsAPIEvent) (*SlackMessageContext, error) {
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("can not connect to DB: %v", err)
+		dbObj, err = db.GetDatabase()
+	}
+	start := time.Now()
+	msgCtx, err := NewClient(eventsAPIEvent)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return &SlackMessageContext{}, fmt.Errorf("error at NewClient: %v", err)
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Printf("NewMessageContext took %v\n", time.Since(start))
+	return msgCtx, nil
+}
 
-	err := error(nil)
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		err = slackBot.Listen(ctx)
-		defer cancel()
-	}()
+func IsBot(ev *slackevents.MessageEvent) bool {
+	return ev.BotID != ""
+}
+
+func getSlackAPIClient(workspaceID string) (*slack.Client, error) {
 
 	if err != nil {
-		log.Printf("Error listening to Slack Bot: %v, Token: %v\n", err, slackBotToken)
-		return nil, fmt.Errorf("error listening to slack bot: %v, token: %v", err, slackBotToken)
+		return nil, fmt.Errorf("error at GetDatabase: %v", err)
 	}
+	botObj, err := dbObj.GetBotByWorkspaceID(context.Background(), workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("error at GetBotByWorkspaceID: %v", err)
+	}
+	api := slack.New(botObj.BotToken)
+	return api, nil
+}
 
-	return slackBot, nil
+func (msgCtx *SlackMessageContext) ChannelName() (string, error) {
+	channelName := ""
+	channel, err := dbObj.GetChannelByID(context.Background(), msgCtx.ChannelID)
+	channelName = channel.ChannelName
+	if err != nil {
+		if strings.Contains(err.Error(), "no rows in result set") {
+			slackChannel, err := msgCtx.Api.GetConversationInfo(&slack.GetConversationInfoInput{
+				ChannelID:         msgCtx.ChannelID,
+				IncludeLocale:     false,
+				IncludeNumMembers: false})
+			if err != nil {
+				return "", fmt.Errorf("error getting channel: %v", err)
+			}
+			channelName = slackChannel.Name
+		} else {
+			return "", fmt.Errorf("error getting channel: %v", err)
+		}
+	}
+	return channelName, nil
+}
+
+type CommandFunc func(msgCtx *SlackMessageContext, suffix string)
+type SlackMessageContext struct {
+	Api            *slack.Client
+	EventsAPIEvent *slackevents.EventsAPIEvent
+	InnerEvent     *slackevents.MessageEvent
+	Message        string
+	Prefix         string
+	ChannelID      string
+}
+
+func NewClient(eventsAPIEvent *slackevents.EventsAPIEvent) (*SlackMessageContext, error) {
+
+	innerEvent := eventsAPIEvent.InnerEvent
+	if innerEvent.Type != "message" {
+		return &SlackMessageContext{}, fmt.Errorf("error at NewClient: innerEvent.Type is not MessageEvent")
+	}
+	ev := innerEvent.Data.(*slackevents.MessageEvent)
+	message := ev.Text
+	words := strings.Fields(message)
+	prefix := ""
+	if len(words) > 0 {
+		prefix = words[0]
+	}
+	api, err := getSlackAPIClient(eventsAPIEvent.TeamID)
+	if err != nil {
+		return &SlackMessageContext{}, fmt.Errorf("error at NewClient/getSlackAPIClient: %v", err)
+	}
+	return &SlackMessageContext{
+		Api:            api,
+		EventsAPIEvent: eventsAPIEvent,
+		InnerEvent:     ev,
+		Message:        message,
+		Prefix:         prefix,
+		ChannelID:      ev.Channel,
+	}, nil
+}
+
+func (messageCtx *SlackMessageContext) Command(commandPrefix string, commandFunc CommandFunc) {
+	suffix := ""
+	words := strings.Fields(messageCtx.Message)
+	if len(words) > 1 {
+		suffix = strings.Join(words[1:], "")
+	}
+	if messageCtx.Prefix == commandPrefix {
+		commandFunc(messageCtx, suffix)
+	}
 }
