@@ -13,8 +13,8 @@ const (
 // ReportError sends back a formatted error message to the channel where we received the event from
 func (msgCtx *SlackMessageContext) ReportError(err error) {
 
-	apiClient := msgCtx.api
-	event := msgCtx.innerEvent
+	apiClient := msgCtx.Api
+	event := msgCtx.InnerEvent
 
 	opts := []slack.MsgOption{
 		slack.MsgOptionText(fmt.Sprintf(errorFormat, err.Error()), false),
@@ -22,7 +22,7 @@ func (msgCtx *SlackMessageContext) ReportError(err error) {
 
 	opts = append(opts, slack.MsgOptionTS(event.TimeStamp))
 
-	_, _, err = apiClient.PostMessage(msgCtx.channelID, opts...)
+	_, _, err = apiClient.PostMessage(msgCtx.ChannelID, opts...)
 	if err != nil {
 		fmt.Printf("failed posting message: %v\n", err)
 	}
@@ -30,18 +30,18 @@ func (msgCtx *SlackMessageContext) ReportError(err error) {
 
 // Reply send a message to the current channel
 func (msgCtx *SlackMessageContext) Reply(message string, options ...slack.MsgOption) error {
-	ev := msgCtx.innerEvent
+	ev := msgCtx.InnerEvent
 	if ev == nil {
 		return fmt.Errorf("unable to get message event details")
 	}
-	return msgCtx.Post(msgCtx.channelID, message, options...)
+	return msgCtx.Post(msgCtx.ChannelID, message, options...)
 }
 
 // Post send a message to a channel
 func (msgCtx *SlackMessageContext) Post(channel string, message string, options ...slack.MsgOption) error {
 
-	apiClient := msgCtx.api
-	event := msgCtx.innerEvent
+	apiClient := msgCtx.Api
+	event := msgCtx.InnerEvent
 	if event == nil {
 		return fmt.Errorf("unable to get message event details")
 	}

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/enesonus/so-slack-bot/internal/db"
-	"github.com/shomali11/slacker"
 	"github.com/slack-go/slack"
 )
 
@@ -20,122 +19,106 @@ import (
 // bot.Command("repeat <word> {number}", repeatNtimesDef)
 // bot.Command("message", messageReplyDefinition)
 
-var removeSOChannelDef = &slacker.CommandDefinition{
-	Description: "Remove the channel to send SO notifications to",
-	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-		apiClient := botCtx.APIClient()
-		event := botCtx.Event()
+func RemoveSOChannelDef(msgCtx *SlackMessageContext, suffix string) {
+	apiClient := msgCtx.Api
 
-		if event.ChannelID != "" {
-			fmt.Printf("Stack Overflow channel is removed\n")
-			apiClient.PostMessage(event.ChannelID, slack.MsgOptionText("SO question notification channel is removed", false))
+	if msgCtx.ChannelID != "" {
+		fmt.Printf("Stack Overflow channel is removed\n")
+		apiClient.PostMessage(msgCtx.ChannelID, slack.MsgOptionText("SO question notification channel is removed", false))
 
-			databaseObject, err := db.GetDatabase()
-			if err != nil {
-				fmt.Printf("Error connecting database: %v\n", err)
-			}
-
-			_, err = databaseObject.DeleteChannel(context.Background(), event.ChannelID)
-			if err != nil {
-				fmt.Printf("Error deleting channel: %v\n", err)
-				return
-			}
-			fmt.Printf("Stack Overflow channel ID is removed\n")
+		_, err = dbObj.DeleteChannel(context.Background(), msgCtx.ChannelID)
+		if err != nil {
+			fmt.Printf("Error deleting channel: %v\n", err)
+			return
 		}
-	},
+		fmt.Printf("Stack Overflow channel ID is removed\n")
+	}
 }
 
-var setSOChannelDef = &slacker.CommandDefinition{
-	Description: "Set the channel to send SO notifications to",
-	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-		apiClient := botCtx.APIClient()
-		event := botCtx.Event()
+func SetSOChannelDef(msgCtx *SlackMessageContext, suffix string) {
+	apiClient := msgCtx.Api
 
-		if event.ChannelID != "" {
-			team, err := apiClient.GetTeamInfo()
-			if err != nil {
-				fmt.Printf("Error getting team info: %v\n", err)
-			}
-			dbObj, err := db.GetDatabase()
-			if err != nil {
-				fmt.Printf("Error connecting database: %v\n", err)
-			}
-
-			bot, err := dbObj.GetBotByWorkspaceID(context.Background(), team.ID)
-			if err != nil {
-				fmt.Printf("Error getting bot: %v\n", err)
-				return
-			}
-
-			channelParams := db.CreateChannelParams{
-				ID:          event.ChannelID,
-				ChannelName: event.Channel.Name,
-				WorkspaceID: team.ID,
-				CreatedAt:   time.Now(),
-				BotToken:    bot.BotToken,
-			}
-
-			_, err = dbObj.CreateChannel(context.Background(), channelParams)
-			if err != nil {
-				fmt.Printf("Error creating channel: %v\n", err)
-				if strings.Contains(err.Error(), "duplicate key value") {
-					apiClient.PostMessage(event.ChannelID, slack.MsgOptionText(
-						"This channel is already set as Stack Overflow Notification channel: "+event.Channel.Name, false))
-				}
-				return
-			}
-
-			fmt.Printf("Stack Overflow notification channel is set to %s\n", event.Channel.Name)
-			apiClient.PostMessage(event.ChannelID, slack.MsgOptionText(
-				"SO question notification channel is set to: "+event.Channel.Name, false))
-
-			// go BotStackOverflow(botCtx, event.ChannelID, "")
-
-			fmt.Printf("A new instance of Stack Overflow channel ID is set to *%s*\n", event.ChannelID)
+	if msgCtx.ChannelID != "" {
+		team, err := apiClient.GetTeamInfo()
+		if err != nil {
+			fmt.Printf("Error getting team info: %v\n", err)
 		}
-	},
+		if err != nil {
+			fmt.Printf("Error connecting database: %v\n", err)
+		}
+
+		bot, err := dbObj.GetBotByWorkspaceID(context.Background(), team.ID)
+		if err != nil {
+			fmt.Printf("Error getting bot: %v\n", err)
+			return
+		}
+		channelName, err := msgCtx.ChannelName()
+		if err != nil {
+			fmt.Printf("error getting channel name: %v", err)
+		}
+		channelParams := db.CreateChannelParams{
+			ID:          msgCtx.ChannelID,
+			ChannelName: channelName,
+			WorkspaceID: team.ID,
+			CreatedAt:   time.Now(),
+			BotToken:    bot.BotToken,
+		}
+
+		_, err = dbObj.CreateChannel(context.Background(), channelParams)
+		if err != nil {
+			fmt.Printf("Error creating channel: %v\n", err)
+			if strings.Contains(err.Error(), "duplicate key value") {
+				apiClient.PostMessage(msgCtx.ChannelID, slack.MsgOptionText(
+					fmt.Sprintf("This channel is already set as Stack Overflow Notification channel: *%s*", channelName), false))
+			}
+			return
+		}
+
+		fmt.Printf("Stack Overflow notification channel is set to %s\n", channelName)
+		apiClient.PostMessage(msgCtx.ChannelID, slack.MsgOptionText(
+			"SO question notification channel is set to: "+channelName, false))
+
+		// go BotStackOverflow(botCtx, event.ChannelID, "")
+
+		fmt.Printf("A new instance of Stack Overflow channel ID is set to *%s*\n", msgCtx.ChannelID)
+	}
 }
 
-var addTagDef = &slacker.CommandDefinition{
-	Description: "Add Tags to search for in Stack Overflow",
-	Handler: func(botCtx slacker.BotContext, request slacker.Request, response slacker.ResponseWriter) {
-		apiClient := botCtx.APIClient()
-		event := botCtx.Event()
-		tag := request.StringParam("tag", "no_tag")
+func AddTagDef(msgCtx *SlackMessageContext, suffix string) {
+	apiClient := msgCtx.Api
+	event := msgCtx.InnerEvent
+	tag := suffix
 
-		if event.ChannelID != "" && tag != "no_tag" {
-			params := db.BindTagParams{
-				ChannelID: event.ChannelID,
-				Tag:       tag,
-			}
-
-			databaseObject, err := db.GetDatabase()
-			if err != nil {
-				fmt.Printf("Error connecting database: %v\n", err)
-			}
-
-			_, err = databaseObject.BindTag(context.Background(), params)
-			if err != nil {
-				fmt.Printf("Error binding tag: %v\n", err)
-				return
-			}
-			_, err = databaseObject.ActivateTag(context.Background(), tag)
-			if err != nil {
-				fmt.Printf("Error activating tag: %v\n", err)
-				return
-			}
-			fmt.Printf("Tag *%s* added to %s\n", tag, event.Channel.Name)
-			apiClient.PostMessage(event.ChannelID, slack.MsgOptionText(
-				"New Stack Overflow questions about *"+tag+"* will be sent to channel *"+event.Channel.Name+"*", false))
-
-			fmt.Printf("A new instance of Stack Overflow channel ID is set to %s\n", event.ChannelID)
+	if event.Channel != "" && tag != "no_tag" {
+		params := db.BindTagParams{
+			ChannelID: msgCtx.ChannelID,
+			Tag:       tag,
 		}
-	},
+
+		_, err = dbObj.BindTag(context.Background(), params)
+		if err != nil {
+			fmt.Printf("Error binding tag: %v\n", err)
+			return
+		}
+		_, err = dbObj.ActivateTag(context.Background(), tag)
+		if err != nil {
+			fmt.Printf("Error activating tag: %v\n", err)
+			return
+		}
+		channelName, err := msgCtx.ChannelName()
+		if err != nil {
+			fmt.Printf("error: %v", err)
+		}
+		fmt.Printf("Tag *%s* added to %s\n", tag, channelName)
+		apiClient.PostMessage(msgCtx.ChannelID, slack.MsgOptionText(
+			"New Stack Overflow questions about *"+tag+"* will be sent to channel *"+channelName+"*", false))
+
+	}
 }
 
 func GetUserInfo(msgCtx *SlackMessageContext, suffix string) {
-	event := msgCtx.innerEvent
-	apiClient := msgCtx.api
+	event := msgCtx.InnerEvent
+	apiClient := msgCtx.Api
 
 	userID := event.User
 	user, err := apiClient.GetUserInfo(userID)
@@ -190,45 +173,39 @@ func GetUserInfo(msgCtx *SlackMessageContext, suffix string) {
 	msgCtx.Reply(fmt.Sprintf("*Bot*: %s", botA))
 	msgCtx.Reply(fmt.Sprintf("*Channel*: %s", channelA))
 	msgCtx.Reply(fmt.Sprintf("*Data*: %s", dataA))
-	msgCtx.Reply(fmt.Sprintf("*ChannelID*: %s", msgCtx.channelID))
+	msgCtx.Reply(fmt.Sprintf("*ChannelID*: %s", msgCtx.ChannelID))
 	msgCtx.Reply(fmt.Sprintf("*Type*: %s", event.Type))
 
 }
 
 func ShowTags(msgCtx *SlackMessageContext, suffix string) {
 	start := time.Now()
-	channelID := msgCtx.channelID
-	api := msgCtx.api
+	channelID := msgCtx.ChannelID
+	api := msgCtx.Api
+	funcStart := time.Now()
 
-	channel, err := api.GetConversationInfo(&slack.GetConversationInfoInput{
-		ChannelID:         channelID,
-		IncludeLocale:     false,
-		IncludeNumMembers: false})
+	fmt.Printf("ShowTags/GetConversationInfo took %v\n", time.Since(funcStart))
+	funcStart = time.Now()
 
+	channelName, err := msgCtx.ChannelName()
 	if err != nil {
-		fmt.Printf("Error getting channel: %v\n", err)
+		fmt.Printf("error getting channel name: %v", err)
 		api.PostMessage(channelID, slack.MsgOptionText(
 			fmt.Sprintf("an error occured please try again: %v", err), false))
 		return
 	}
 
-	channelName := channel.Name
-
-	databaseObject, err := db.GetDatabase()
-
+	tags, err := dbObj.GetTagsOfChannel(context.Background(), channelID)
 	if err != nil {
-		fmt.Printf("Error connecting database: %v\n", err)
+		fmt.Printf("Error getting tag of channels: %v\n", err)
 		api.PostMessage(channelID, slack.MsgOptionText(
-			fmt.Sprintf("Error connecting database: %v\n", err), false))
+			fmt.Sprintf("Error getting tag of channels: %v\n", err), false))
 		return
 	}
-	tags, err := databaseObject.GetTagsOfChannel(context.Background(), channelID)
-	if err != nil {
-		fmt.Printf("Error getting channels: %v\n", err)
-		api.PostMessage(channelID, slack.MsgOptionText(
-			fmt.Sprintf("Error getting channels: %v\n", err), false))
-		return
-	}
+
+	fmt.Printf("ShowTags/GetTagsOfChannel took %v\n", time.Since(funcStart))
+	funcStart = time.Now()
+
 	if len(tags) == 0 {
 		api.PostMessage(channelID, slack.MsgOptionText(
 			fmt.Sprintf("No tags bound to channel: %v", channelName), false))
@@ -241,5 +218,7 @@ func ShowTags(msgCtx *SlackMessageContext, suffix string) {
 	}
 	api.PostMessage(channelID, slack.MsgOptionText(
 		fmt.Sprintf("*Tags bound to channel %v*: %v", channelName, tagListStr), false))
+
+	fmt.Printf("ShowTags/PostMessage took %v\n", time.Since(funcStart))
 	fmt.Printf("ShowTagsDef took %v\n", time.Since(start))
 }

@@ -37,6 +37,7 @@ func EventsAPIHandler(w http.ResponseWriter, r *http.Request) {
 		var res *slackevents.ChallengeResponse
 		err = json.Unmarshal([]byte(body), &res)
 		if err != nil {
+			fmt.Printf("error at Unmarshal: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -47,12 +48,21 @@ func EventsAPIHandler(w http.ResponseWriter, r *http.Request) {
 		innerEvent := eventsAPIEvent.InnerEvent
 		switch innerEvent.Data.(type) {
 		case *slackevents.MessageEvent:
-			msgCtx, err := bot.SlackMessageHandler(w, &eventsAPIEvent)
+			if bot.IsBot(innerEvent.Data.(*slackevents.MessageEvent)) {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			msgCtx, err := bot.NewMessageContext(w, &eventsAPIEvent)
 			if err != nil {
+				fmt.Printf("error: %v", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			go msgCtx.Listen("show_tags", bot.ShowTags)
+			go msgCtx.Command("show_tags", bot.ShowTags)
+			go msgCtx.Command("getinfo", bot.GetUserInfo)
+			go msgCtx.Command("add_tag", bot.AddTagDef)
+			go msgCtx.Command("set_so_channel", bot.SetSOChannelDef)
+			go msgCtx.Command("remove_so_channel", bot.RemoveSOChannelDef)
 			w.WriteHeader(http.StatusOK)
 		}
 	}

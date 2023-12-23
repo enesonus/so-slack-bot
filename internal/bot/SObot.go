@@ -12,8 +12,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/enesonus/so-slack-bot/internal/db"
-	"github.com/shomali11/slacker"
 	"github.com/slack-go/slack"
 )
 
@@ -28,15 +26,15 @@ func QuestionCheckerAndSender() {
 	lastQuestionCheckDate := time.Now()
 
 	ticker := time.NewTicker(time.Duration(timePeriod) * time.Minute)
-	// ticker := time.NewTicker(time.Duration(30) * time.Second)
+	// ticker := time.NewTicker(time.Duration(5) * time.Second)
 
 	for range ticker.C {
 		var questions []StackOverflowQuestion
 
-		dbObj, err := db.GetDatabase()
 		if err != nil {
 			log.Println("Error getting database: ", err)
 		}
+		// TODO: active tags might not have any channels subscribed to them
 		activeTags, err := dbObj.GetActiveTags(context.Background())
 		if err != nil {
 			log.Println("Error getting active tags: ", err)
@@ -61,13 +59,14 @@ func QuestionCheckerAndSender() {
 
 				for _, question := range questions {
 
-					slackBot := slacker.NewClient(channel.BotToken, os.Getenv("SLACK_APP_TOKEN"))
-					questionTemplate :=
-						">*New question about %v from %v*!\nLink: %v \nOwner: %v\n"
+					apiClient := slack.New(channel.BotToken)
+					questionTemplate := ">*New %v about %v from %v*!\n"
 					decodedName := html.UnescapeString(question.Owner.Display_name)
-					questionText := fmt.Sprintf(questionTemplate, tag.Name, decodedName, question.Link, question.Owner.Link)
+					markdownName := fmt.Sprintf("<%v|%v>", question.Owner.Link, decodedName)
+					markdownQuestion := fmt.Sprintf("<%v|%v>", question.Link, "question")
+					questionText := fmt.Sprintf(questionTemplate, markdownQuestion, tag.Name, markdownName)
 
-					slackBot.APIClient().PostMessage(tagSub.ChannelID, slack.MsgOptionText(questionText, false))
+					apiClient.PostMessage(tagSub.ChannelID, slack.MsgOptionText(questionText, false))
 				}
 
 			}
