@@ -17,6 +17,7 @@ jobs:
                              SLACK_BOT_CLIENT_SECRET="$SLACK_BOT_CLIENT_SECRET" \
                              SLACK_SIGNING_SECRET="$SLACK_SIGNING_SECRET" \
                              SLACK_VERIFICATION_TOKEN="$SLACK_VERIFICATION_TOKEN" \
-      - run: flyctl deploy --remote-only
+                             --access-token="${{ secrets.FLY_API_TOKEN }}"
+      - run: flyctl deploy --remote-only --access-token="${{ secrets.FLY_API_TOKEN }}"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
