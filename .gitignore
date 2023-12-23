@@ -22,6 +22,3 @@ go.work
 
 # Env files
 *.env
-
-# Fly.io files
-fly.toml
