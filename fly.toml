@@ -9,7 +9,8 @@ primary_region = "ams"
 [build]
 
 [env]
-  PORT = "8080"
+  PORT="8080"
+  QUESTION_QUERY_TIME_PERIOD_MINUTES="60"
 
 [http_service]
   internal_port = 8080
