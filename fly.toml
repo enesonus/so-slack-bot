@@ -7,7 +7,6 @@ app = "so-slack-bot"
 primary_region = "ams"
 
 [build]
-  image = "Dockerfile" # This line instructs Fly to use Docker for building the image
 
 [env]
   PORT = "8080"
