@@ -132,7 +132,9 @@ func AddTagDef(msgCtx *SlackMessageContext, suffix string) {
 		}
 		fmt.Printf("Tag *%s* added to %s\n", tag, channelName)
 		apiClient.PostMessage(msgCtx.ChannelID, slack.MsgOptionText(
-			"New Stack Overflow questions about *"+tag+"* will be sent to channel *"+channelName+"*", false))
+			fmt.Sprintf(
+				"New Stack Overflow questions about `%s` will be sent to channel `%s`",
+				 tag, channelName), false))
 
 	}
 }
