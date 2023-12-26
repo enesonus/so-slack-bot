@@ -58,11 +58,11 @@ func EventsAPIHandler(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			go msgCtx.Command("show_tags", bot.ShowTags)
-			go msgCtx.Command("getinfo", bot.GetUserInfo)
-			go msgCtx.Command("add_tag", bot.AddTagDef)
-			go msgCtx.Command("set_so_channel", bot.SetSOChannelDef)
-			go msgCtx.Command("remove_so_channel", bot.RemoveSOChannelDef)
+			go msgCtx.Command("soslack_show_tags", bot.ShowTags)
+			// go msgCtx.Command("sosla_getinfo", bot.GetUserInfo)
+			go msgCtx.Command("soslack_add_tag", bot.AddTagDef)
+			go msgCtx.Command("soslack_set_so_channel", bot.SetSOChannelDef)
+			go msgCtx.Command("soslack_remove_so_channel", bot.RemoveSOChannelDef)
 			w.WriteHeader(http.StatusOK)
 		}
 	}

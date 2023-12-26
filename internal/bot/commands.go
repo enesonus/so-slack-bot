@@ -65,15 +65,15 @@ func CreateSlackBot(slackBotToken string) (*slack.Client, error) {
 	return apiClient, nil
 }
 
-var dbObj, err = db.GetDatabase()
+var dbObj, dbErr = db.GetDatabase()
 
 // ticker := time.NewTicker(time.Duration(timePeriod) * time.Minute)
 
 func NewMessageContext(w http.ResponseWriter, eventsAPIEvent *slackevents.EventsAPIEvent) (*SlackMessageContext, error) {
-	if err != nil {
+	if dbErr != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("can not connect to DB: %v", err)
-		dbObj, err = db.GetDatabase()
+		log.Printf("can not connect to DB: %v", dbErr)
+		dbObj, dbErr = db.GetDatabase()
 	}
 	start := time.Now()
 	msgCtx, err := NewClient(eventsAPIEvent)
@@ -92,8 +92,8 @@ func IsBot(ev *slackevents.MessageEvent) bool {
 
 func getSlackAPIClient(workspaceID string) (*slack.Client, error) {
 
-	if err != nil {
-		return nil, fmt.Errorf("error at GetDatabase: %v", err)
+	if dbErr != nil {
+		return nil, fmt.Errorf("error at GetDatabase: %v", dbErr)
 	}
 	botObj, err := dbObj.GetBotByWorkspaceID(context.Background(), workspaceID)
 	if err != nil {

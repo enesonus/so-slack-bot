@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -23,15 +24,21 @@ func RemoveSOChannelDef(msgCtx *SlackMessageContext, suffix string) {
 	apiClient := msgCtx.Api
 
 	if msgCtx.ChannelID != "" {
-		fmt.Printf("Stack Overflow channel is removed\n")
-		apiClient.PostMessage(msgCtx.ChannelID, slack.MsgOptionText("SO question notification channel is removed", false))
-
-		_, err = dbObj.DeleteChannel(context.Background(), msgCtx.ChannelID)
+		_, err := dbObj.DeleteChannel(context.Background(), msgCtx.ChannelID)
 		if err != nil {
-			fmt.Printf("Error deleting channel: %v\n", err)
+			if strings.Contains(err.Error(), "rows in result set"){
+				apiClient.PostMessage(msgCtx.ChannelID, slack.MsgOptionText(
+					"Channel is already not a Stack Overflow Notification channel", false))
+					return
+			}
+
+			log.Printf("Error deleting channel: %v\n", err)
 			return
 		}
-		fmt.Printf("Stack Overflow channel ID is removed\n")
+		channelName, _ := msgCtx.ChannelName()
+		fmt.Printf("Stack Overflow channel is removed\n")
+		apiClient.PostMessage(msgCtx.ChannelID, slack.MsgOptionText(
+			fmt.Sprintf("`%s` is removed from notification channels", channelName), false))
 	}
 }
 
@@ -66,17 +73,18 @@ func SetSOChannelDef(msgCtx *SlackMessageContext, suffix string) {
 
 		_, err = dbObj.CreateChannel(context.Background(), channelParams)
 		if err != nil {
-			fmt.Printf("Error creating channel: %v\n", err)
 			if strings.Contains(err.Error(), "duplicate key value") {
 				apiClient.PostMessage(msgCtx.ChannelID, slack.MsgOptionText(
 					fmt.Sprintf("This channel is already set as Stack Overflow Notification channel: *%s*", channelName), false))
-			}
+				return
+				}
+			log.Printf("Error creating channel: %v\n", err)
 			return
 		}
 
 		fmt.Printf("Stack Overflow notification channel is set to %s\n", channelName)
 		apiClient.PostMessage(msgCtx.ChannelID, slack.MsgOptionText(
-			"SO question notification channel is set to: "+channelName, false))
+			fmt.Sprintf("A new Stack Overflow notification channel is set: `%s`", channelName), false))
 
 		// go BotStackOverflow(botCtx, event.ChannelID, "")
 
@@ -95,11 +103,24 @@ func AddTagDef(msgCtx *SlackMessageContext, suffix string) {
 			Tag:       tag,
 		}
 
-		_, err = dbObj.BindTag(context.Background(), params)
+		_, err := dbObj.BindTag(context.Background(), params)
 		if err != nil {
+			if strings.Contains(err.Error(), "violates foreign key constraint") {
+
+				apiClient.PostMessage(msgCtx.ChannelID, slack.MsgOptionText(
+					"Channel is not a notification channel please set it using `soslack_set_so_channel` command", false))
+				return
+			}
+			if strings.Contains(err.Error(), "violates unique constraint") {
+
+				apiClient.PostMessage(msgCtx.ChannelID, slack.MsgOptionText(
+					fmt.Sprintf("This channel is already bound to tag: *%s*", tag), false))
+				return
+			}
 			fmt.Printf("Error binding tag: %v\n", err)
 			return
 		}
+
 		_, err = dbObj.ActivateTag(context.Background(), tag)
 		if err != nil {
 			fmt.Printf("Error activating tag: %v\n", err)
